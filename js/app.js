@@ -6,10 +6,12 @@ import { bumpCounter, toast, createFloatingActionButton, showOnboardingModal } f
 import { createTooltips, addHelpIcon, showToolHelp } from './core/ui-helpers.js';
 import { helpContent } from './core/help-content.js';
 
-// Import only the tool modules that exist
+// Import all tool modules
 import { welcomeScreenUI } from './tools/welcome.js';
 import { curveFitterUI } from './tools/curve-fitter.js';
 import { expDesignerUI } from './tools/exp-designer.js';
+import { statGenieUI } from './tools/stat-genie.js';
+import { unitConverterUI } from './tools/unit-converter.js';
 
 // Tool registry with all available tools
 const tools = {
@@ -17,6 +19,10 @@ const tools = {
   welcome: {
     name: 'Welcome',
     render: welcomeScreenUI
+  },
+  statGenie: {
+    name: 'Statistical Test Genie',
+    render: statGenieUI
   },
   // Placeholder tools that will be implemented later
   calculator: {
@@ -62,18 +68,8 @@ const tools = {
     }
   },
   unitConverter: {
-    name: 'Unit Converter',
-    render: function(container, helpers) {
-      container.innerHTML = `
-        <div class="p-6">
-          <h2 class="text-xl font-bold mb-4">Scientific Unit Converter</h2>
-          <div class="p-4 bg-yellow-100 rounded-lg">
-            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
-            <p class="mt-2">Please check back soon.</p>
-          </div>
-        </div>
-      `;
-    }
+    name: 'Unit & Concentration Converter',
+    render: unitConverterUI
   },
   molCalc: {
     name: 'Molecular Calculator',

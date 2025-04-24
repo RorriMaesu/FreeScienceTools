@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sci Mini-Suite</title>
+  <!-- Production-ready Tailwind CSS -->
+  <link href="https://unpkg.com/@tailwindcss/typography@0.5.9/dist/typography.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Plotly (quick-plot lab) -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <!-- PapaParse (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
+  <!-- jStat for statistical calculations -->
+  <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+  <!-- Dynamic loader for OpenCV.js (will be loaded only when needed) -->
+  <script>
+    function loadOpenCV(callback) {
+      if (window.cv) {
+        callback();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://docs.opencv.org/4.7.0/opencv.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('OpenCV.js loaded');
+        callback();
+      };
+      script.onerror = () => {
+        console.error('Failed to load OpenCV.js');
+        alert('Failed to load OpenCV.js. Please check your internet connection and try again.');
+      };
+      document.head.appendChild(script);
+    }
+  </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <header class="bg-blue-800 text-white p-4 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Sci Mini-Suite</h1>
+    <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">Buy Me a Coffee</a>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="bg-blue-100 p-2 flex gap-2 flex-wrap" id="navBar"></nav>
+
+  <!-- Tool container -->
+  <main class="flex-1 p-4" id="toolContainer"></main>
+
+  <footer class="bg-blue-800 text-white text-center p-2 text-xs mt-4">© 2025 Sci Mini-Suite • All client-side, no data leaves your browser.</footer>
+
+<script>
+// ========== TOOL REGISTRY ========== //
+const tools = {
+  testGenie: {
+    name: 'Stat Test Genie',
+    render: statGenieUI
+  },
+  powerWizard: {
+    name: 'Power & Sample-Size Wizard',
+    render: powerWizardUI
+  },
+  normalityChecker: {
+    name: 'Normality & Outlier Checker',
+    render: normalityCheckerUI
+  },
+  csvConverter: {
+    name: 'CSV to JSON Converter',
+    render: csvConverterUI
+  },
+  quickPlot: {
+    name: 'Quick-Plot Lab',
+    render: quickPlotUI
+  },
+  heatMapper: {
+    name: 'Heat-Mapper',
+    render: heatMapperUI
+  },
+  labCalc: {
+    name: 'Lab Math Calc',
+    render: labCalcUI
+  },
+  unitConverter: {
+    name: 'Unit & Concentration Converter',
+    render: unitConverterUI
+  },
+  fastViewer: {
+    name: 'FAST-Viewer',
+    render: fastViewerUI
+  },
+  cellCounter: {
+    name: 'Quick Cell-Counter (Beta)',
+    render: cellCounterUI
+  }
+};
+
+// Build nav buttons
+const nav = document.getElementById('navBar');
+Object.entries(tools).forEach(([key, {name}]) => {
+  const btn = document.createElement('button');
+  btn.className = 'px-3 py-1 bg-white border rounded shadow hover:bg-blue-200';
+  btn.textContent = name;
+  btn.onclick = () => loadTool(key);
+  nav.appendChild(btn);
+});
+
+function loadTool(key){
+  const container = document.getElementById('toolContainer');
+  container.innerHTML = '';
+  tools[key].render(container);
+}
+
+// ========== TOOL 1: Stat Test Genie ========== //
+function statGenieUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Stat Test Genie</h2>
+  <form id="genieForm" class="space-y-2 max-w-md">
+    <label class="block">Type of data?
+      <select name="dtype" class="border p-1 w-full">
+        <option value="numeric">Numeric (continuous)</option>
+        <option value="categorical">Categorical</option>
+      </select>
+    </label>
+    <label class="block">How many groups/conditions?
+      <select name="groups" class="border p-1 w-full">
+        <option value="2">2</option>
+        <option value=">2">More than 2</option>
+      </select>
+    </label>
+    <label class="block">Are the groups independent?
+      <select name="paired" class="border p-1 w-full">
+        <option value="no">Independent</option>
+        <option value="yes">Paired / repeated</option>
+      </select>
+    </label>
+    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Suggest Test</button>
+  </form>
+  <div id="genieResult" class="mt-4"></div>`;
+
+  document.getElementById('genieForm').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const dtype = fd.get('dtype');
+    const groups = fd.get('groups');
+    const paired = fd.get('paired');
+    const res = document.getElementById('genieResult');
+    let suggestion = '';
+
+    if (dtype === 'numeric') {
+      if (groups === '2') {
+        suggestion = paired === 'yes' ? 'Paired t-test' : 'Student t-test';
+      } else {
+        suggestion = paired === 'yes' ? 'Repeated-measures ANOVA' : 'One-way ANOVA';
+      }
+    } else {
+      suggestion = groups === '2' ? 'Chi-square test (or Fisher exact)' : 'Chi-square test for k x m tables';
+    }
+
+    res.innerHTML = `<p class="font-semibold">Recommended test: <span class="text-blue-700">${suggestion}</span></p>
+                     <p class="text-sm mt-1">Warning: Always verify assumptions (normality, equal variance, sample size).</p>`;
+  };
+}
+
+// ========== TOOL 2: CSV to JSON Converter ========== //
+function csvConverterUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">CSV to JSON Converter</h2>
+  <textarea id="dataInput" rows="8" class="w-full border p-2" placeholder="Paste CSV or JSON here..."></textarea>
+  <div class="flex gap-2 my-2">
+    <button id="toJson" class="bg-blue-600 text-white px-2 py-1 rounded">To JSON</button>
+    <button id="toCsv" class="bg-green-600 text-white px-2 py-1 rounded">To CSV</button>
+  </div>
+  <textarea id="dataOutput" rows="8" class="w-full border p-2" placeholder="Output will appear here" readonly></textarea>`;
+
+  const input = document.getElementById('dataInput');
+  const output = document.getElementById('dataOutput');
+
+  document.getElementById('toJson').onclick = () => {
+    try {
+      const parsed = Papa.parse(input.value.trim(), {header: true});
+      output.value = JSON.stringify(parsed.data, null, 2);
+    } catch(err) {
+      alert('Conversion error');
+    }
+  };
+
+  document.getElementById('toCsv').onclick = () => {
+    try {
+      const obj = JSON.parse(input.value);
+      output.value = Papa.unparse(obj);
+    } catch(err) {
+      alert('Conversion error: ensure valid JSON');
+    }
+  };
+}
+
+// ========== TOOL 3: Quick-Plot Lab ========== //
+function quickPlotUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Quick-Plot Lab</h2>
+  <textarea id="plotData" rows="6" class="w-full border p-2" placeholder="Paste two-column CSV: x,y (one pair per line)"></textarea>
+  <div class="flex gap-2 my-2 items-end">
+    <label class="block">Plot type
+      <select id="plotType" class="border p-1">
+        <option value="scatter">Scatter</option>
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+      </select>
+    </label>
+    <button id="makePlot" class="bg-blue-600 text-white px-3 py-1 rounded">Plot</button>
+  </div>
+  <div id="plotArea" class="bg-white shadow w-full h-96"></div>`;
+
+  document.getElementById('makePlot').onclick = () => {
+    const csv = document.getElementById('plotData').value.trim();
+    const rows = csv.split(/\r?\n/).map(r => r.split(','));
+
+    if (rows.length === 0 || rows[0].length < 2) {
+      alert('Need two columns of data');
+      return;
+    }
+
+    const x = rows.map(r => r[0]);
+    const y = rows.map(r => parseFloat(r[1]));
+    const type = document.getElementById('plotType').value;
+    const trace = {
+      x,
+      y,
+      mode: type === 'scatter' ? 'markers' : undefined,
+      type: type === 'scatter' ? 'scatter' : type
+    };
+
+    Plotly.newPlot('plotArea', [trace], {margin: {t: 20}});
+  };
+}
+
+// ========== TOOL 4: Lab Math Calculator ========== //
+function labCalcUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Dilution & Molarity Calculator</h2>
+  <form id="calcForm" class="space-y-2 max-w-md">
+    <label class="block">Stock concentration (M)
+      <input type="number" step="any" name="stock" class="border p-1 w-full" required>
+    </label>
+    <label class="block">Desired concentration (M)
+      <input type="number" step="any" name="desired" class="border p-1 w-full" required>
+    </label>
+    <label class="block">Final volume (mL)
+      <input type="number" step="any" name="vol" class="border p-1 w-full" required>
+    </label>
+    <button class="bg-blue-600 text-white px-3 py-1 rounded">Calculate</button>
+  </form>
+  <div id="calcResult" class="mt-4"></div>`;
+
+  document.getElementById('calcForm').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const C1 = parseFloat(fd.get('stock'));
+    const C2 = parseFloat(fd.get('desired'));
+    const V2 = parseFloat(fd.get('vol'));
+
+    if (C2 > C1) {
+      alert('Desired concentration cannot exceed stock');
+      return;
+    }
+
+    const V1 = (C2 * V2) / C1; // in mL
+    const diluent = V2 - V1;
+
+    document.getElementById('calcResult').innerHTML = `<p>Pipette <span class="font-semibold">${V1.toFixed(3)} mL</span> of stock solution and add <span class="font-semibold">${diluent.toFixed(3)} mL</span> diluent.</p>`;
+  };
+}
+
+// ========== TOOL 5: FAST-Viewer ========== //
+function fastViewerUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">FAST-Viewer</h2>
+  <textarea id="seqInput" rows="8" class="w-full border p-2" placeholder=">mySeq\nATGCGT..."></textarea>
+  <label class="block my-2">Motif/Regex (optional)
+    <input id="motif" class="border p-1 w-full" placeholder="e.g. GAATTC or ATG[ATGC]{3}TAA">
+  </label>
+  <button id="analyzeSeq" class="bg-blue-600 text-white px-3 py-1 rounded">Highlight</button>
+  <pre id="seqOutput" class="whitespace-pre-wrap mt-4 bg-white p-2 border overflow-x-auto"></pre>`;
+
+  document.getElementById('analyzeSeq').onclick = () => {
+    const raw = document.getElementById('seqInput').value.trim();
+    if (!raw) {
+      document.getElementById('seqOutput').innerHTML = '';
+      return;
+    }
+
+    const lines = raw.split(/\r?\n/);
+    let seq = lines.filter(l => !l.startsWith('>')).join('').toUpperCase();
+    const motif = document.getElementById('motif').value.trim();
+    let html = '';
+
+    if (motif) {
+      try {
+        const regex = new RegExp(motif, 'g');
+        let last = 0, match;
+
+        while ((match = regex.exec(seq))) {
+          html += seq.slice(last, match.index);
+          html += `<span class='bg-yellow-300'>${match[0]}</span>`;
+          last = match.index + match[0].length;
+        }
+
+        html += seq.slice(last);
+      } catch(e) {
+        alert('Invalid motif/regex');
+        html = seq;
+      }
+    } else {
+      html = seq;
+    }
+
+    if (html) {
+      const chunks = [];
+      for (let i = 0; i < html.length; i += 60) {
+        chunks.push(html.substring(i, i + 60));
+      }
+      document.getElementById('seqOutput').innerHTML = chunks.join('\n');
+    } else {
+      document.getElementById('seqOutput').innerHTML = '';
+    }
+  };
+}
+
+// ========== TOOL 6: Power & Sample-Size Wizard ========== //
+function powerWizardUI(root) {
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Power & Sample-Size Wizard</h2>
+  <div class="max-w-2xl">
+    <p class="mb-4 text-sm">Calculate the required sample size for your study or the power of your existing sample size.</p>
+
+    <form id="powerForm" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block mb-2">Test type
+            <select id="testType" class="border p-1 w-full">
+              <option value="ttest">t-test (means)</option>
+              <option value="ztest">z-test (proportions)</option>
+              <option value="correlation">Correlation</option>
+            </select>
+          </label>
+
+          <label class="block mb-2">What to calculate
+            <select id="calcType" class="border p-1 w-full">
+              <option value="sampleSize">Sample size</option>
+              <option value="power">Power</option>
+            </select>
+          </label>
+
+          <div id="effectSizeContainer" class="mb-2">
+            <label class="block">Effect size
+              <div class="flex items-center">
+                <input type="range" id="effectSizeSlider" min="0.1" max="1.5" step="0.05" value="0.5" class="w-3/4 mr-2">
+                <input type="number" id="effectSize" min="0.1" max="2" step="0.05" value="0.5" class="border p-1 w-1/4">
+              </div>
+              <div class="text-xs text-gray-600 mt-1">
+                <span>Small: 0.2</span>
+                <span class="ml-4">Medium: 0.5</span>
+                <span class="ml-4">Large: 0.8</span>
+              </div>
+            </label>
+          </div>
+
+          <label class="block mb-2">Significance level (α)
+            <select id="alpha" class="border p-1 w-full">
+              <option value="0.05">0.05 (5%)</option>
+              <option value="0.01">0.01 (1%)</option>
+              <option value="0.1">0.10 (10%)</option>
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <div id="powerInputContainer" class="mb-2">
+            <label class="block">Desired power (1-β)
+              <div class="flex items-center">
+                <input type="range" id="powerSlider" min="0.5" max="0.99" step="0.01" value="0.8" class="w-3/4 mr-2">
+                <input type="number" id="powerInput" min="0.5" max="0.99" step="0.01" value="0.8" class="border p-1 w-1/4">
+              </div>
+            </label>
+          </div>
+
+          <div id="sampleSizeContainer" class="mb-2 hidden">
+            <label class="block">Sample size (per group)
+              <input type="number" id="sampleSizeInput" min="2" value="30" class="border p-1 w-full">
+            </label>
+          </div>
+
+          <div id="tailsContainer" class="mb-2">
+            <label class="block">Test direction
+              <select id="tails" class="border p-1 w-full">
+                <option value="2">Two-tailed</option>
+                <option value="1">One-tailed</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="groupsContainer" class="mb-2">
+            <label class="block">Groups
+              <select id="groups" class="border p-1 w-full">
+                <option value="2">Two groups</option>
+                <option value="1">One group</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Calculate</button>
+    </form>
+
+    <div id="powerResult" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded hidden">
+      <h3 class="font-semibold text-lg mb-2" id="resultTitle"></h3>
+      <p id="resultText"></p>
+      <div id="powerCurveContainer" class="mt-4 h-64"></div>
+    </div>
+
+    <div class="mt-6 text-sm text-gray-600">
+      <p class="font-semibold">Guide:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><strong>Effect size</strong>: How large a difference you expect to detect (Cohen's d for t-tests).</li>
+        <li><strong>Power</strong>: Probability of detecting an effect if it exists (1-β). 0.8 (80%) is standard.</li>
+        <li><strong>Significance level (α)</strong>: Probability of Type I error (false positive).</li>
+      </ul>
+    </div>
+  </div>`;
+
+  // Connect sliders to inputs
+  const effectSizeSlider = document.getElementById('effectSizeSlider');
+  const effectSizeInput = document.getElementById('effectSize');
+  const powerSlider = document.getElementById('powerSlider');
+  const powerInput = document.getElementById('powerInput');
+  const calcType = document.getElementById('calcType');
+  const powerInputContainer = document.getElementById('powerInputContainer');
+  const sampleSizeContainer = document.getElementById('sampleSizeContainer');
+
+  // Sync sliders and inputs
+  effectSizeSlider.addEventListener('input', () => {
+    effectSizeInput.value = effectSizeSlider.value;
+  });
+
+  effectSizeInput.addEventListener('input', () => {
+    effectSizeSlider.value = effectSizeInput.value;
+  });
+
+  powerSlider.addEventListener('input', () => {
+    powerInput.value = powerSlider.value;
+  });
+
+  powerInput.addEventListener('input', () => {
+    powerSlider.value = powerInput.value;
+  });
+
+  // Toggle inputs based on calculation type
+  calcType.addEventListener('change', () => {
+    if (calcType.value === 'sampleSize') {
+      powerInputContainer.classList.remove('hidden');
+      sampleSizeContainer.classList.add('hidden');
+    } else {
+      powerInputContainer.classList.add('hidden');
+      sampleSizeContainer.classList.remove('hidden');
+    }
+  });
+
+  // Handle form submission
+  document.getElementById('powerForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const testType = document.getElementById('testType').value;
+    const calcType = document.getElementById('calcType').value;
+    const effectSize = parseFloat(document.getElementById('effectSize').value);
+    const alpha = parseFloat(document.getElementById('alpha').value);
+    const tails = parseInt(document.getElementById('tails').value);
+    const groups = parseInt(document.getElementById('groups').value);
+
+    let result, power, sampleSize;
+
+    if (calcType === 'sampleSize') {
+      power = parseFloat(document.getElementById('powerInput').value);
+      sampleSize = calculateSampleSize(testType, effectSize, alpha, power, tails, groups);
+      result = {
+        title: 'Required Sample Size',
+        text: `You need ${Math.ceil(sampleSize)} subjects ${groups === 2 ? 'per group' : 'total'} to detect an effect size of ${effectSize.toFixed(2)} with ${(power * 100).toFixed(0)}% power at α = ${alpha}.`
+      };
+    } else {
+      sampleSize = parseInt(document.getElementById('sampleSizeInput').value);
+      power = calculatePower(testType, effectSize, alpha, sampleSize, tails, groups);
+      result = {
+        title: 'Statistical Power',
+        text: `With ${sampleSize} subjects ${groups === 2 ? 'per group' : 'total'}, you have ${(power * 100).toFixed(1)}% power to detect an effect size of ${effectSize.toFixed(2)} at α = ${alpha}.`
+      };
+    }
+
+    // Display result
+    const resultContainer = document.getElementById('powerResult');
+    document.getElementById('resultTitle').textContent = result.title;
+    document.getElementById('resultText').textContent = result.text;
+    resultContainer.classList.remove('hidden');
+
+    // Generate power curve
+    generatePowerCurve(testType, alpha, tails, groups, sampleSize, power, effectSize);
+
+    // Add donation button to result
+    const donationBtn = document.createElement('a');
+    donationBtn.href = 'https://buymeacoffee.com/rorrimaesu';
+    donationBtn.target = '_blank';
+    donationBtn.className = 'inline-block mt-4 bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500';
+    donationBtn.textContent = '☕ Found this helpful? Buy me a coffee!';
+    document.getElementById('resultText').appendChild(document.createElement('br'));
+    document.getElementById('resultText').appendChild(document.createElement('br'));
+    document.getElementById('resultText').appendChild(donationBtn);
+  });
+
+  // Helper functions for calculations
+  function calculateSampleSize(testType, effectSize, alpha, power, tails, groups) {
+    let z_alpha, z_beta, n;
+
+    // Critical values
+    z_alpha = jStat.normal.inv(1 - alpha / tails, 0, 1);
+    z_beta = jStat.normal.inv(power, 0, 1);
+
+    if (testType === 'ttest') {
+      // For t-test (means)
+      if (groups === 2) {
+        // Two-sample t-test
+        n = 2 * Math.pow(z_alpha + z_beta, 2) / Math.pow(effectSize, 2);
+      } else {
+        // One-sample t-test
+        n = Math.pow(z_alpha + z_beta, 2) / Math.pow(effectSize, 2);
+      }
+    } else if (testType === 'ztest') {
+      // For z-test (proportions)
+      if (groups === 2) {
+        // Two-sample z-test for proportions
+        // Using arcsin approximation for proportions
+        n = 2 * Math.pow(z_alpha + z_beta, 2) / Math.pow(2 * Math.asin(Math.sqrt(0.5 + effectSize/2)) - 2 * Math.asin(Math.sqrt(0.5)), 2);
+      } else {
+        // One-sample z-test for proportions
+        const p0 = 0.5; // Null hypothesis proportion
+        const p1 = p0 + effectSize; // Alternative hypothesis proportion
+        n = Math.pow(z_alpha * Math.sqrt(p0 * (1 - p0)) + z_beta * Math.sqrt(p1 * (1 - p1)), 2) / Math.pow(p1 - p0, 2);
+      }
+    } else if (testType === 'correlation') {
+      // For correlation test
+      // Fisher's z transformation
+      const z_r = 0.5 * Math.log((1 + effectSize) / (1 - effectSize));
+      n = 3 + Math.pow(z_alpha + z_beta, 2) / Math.pow(z_r, 2);
+    }
+
+    return Math.ceil(n);
+  }
+
+  function calculatePower(testType, effectSize, alpha, sampleSize, tails, groups) {
+    let z_alpha, z_beta, power;
+
+    // Critical values
+    z_alpha = jStat.normal.inv(1 - alpha / tails, 0, 1);
+
+    if (testType === 'ttest') {
+      // For t-test (means)
+      if (groups === 2) {
+        // Two-sample t-test
+        z_beta = effectSize * Math.sqrt(sampleSize / 2) - z_alpha;
+      } else {
+        // One-sample t-test
+        z_beta = effectSize * Math.sqrt(sampleSize) - z_alpha;
+      }
+    } else if (testType === 'ztest') {
+      // For z-test (proportions)
+      if (groups === 2) {
+        // Two-sample z-test for proportions
+        const delta = 2 * Math.asin(Math.sqrt(0.5 + effectSize/2)) - 2 * Math.asin(Math.sqrt(0.5));
+        z_beta = delta * Math.sqrt(sampleSize / 2) - z_alpha;
+      } else {
+        // One-sample z-test for proportions
+        const p0 = 0.5; // Null hypothesis proportion
+        const p1 = p0 + effectSize; // Alternative hypothesis proportion
+        z_beta = (p1 - p0) * Math.sqrt(sampleSize) / Math.sqrt(p0 * (1 - p0)) - z_alpha * Math.sqrt(p1 * (1 - p1) / (p0 * (1 - p0)));
+      }
+    } else if (testType === 'correlation') {
+      // For correlation test
+      // Fisher's z transformation
+      const z_r = 0.5 * Math.log((1 + effectSize) / (1 - effectSize));
+      z_beta = z_r * Math.sqrt(sampleSize - 3) - z_alpha;
+    }
+
+    power = jStat.normal.cdf(z_beta, 0, 1);
+    return power;
+  }
+
+  function generatePowerCurve(testType, alpha, tails, groups, sampleSize, power, currentEffectSize) {
+    // Generate data for power curve
+    const effectSizes = [];
+    const powers = [];
+
+    // Generate 20 points for the curve
+    for (let i = 0; i < 20; i++) {
+      const es = 0.1 + i * 0.1; // Effect sizes from 0.1 to 2.0
+      effectSizes.push(es);
+
+      if (document.getElementById('calcType').value === 'sampleSize') {
+        // If calculating sample size, show power curve for the calculated sample size
+        const p = calculatePower(testType, es, alpha, sampleSize, tails, groups);
+        powers.push(p);
+      } else {
+        // If calculating power, show sample size curve for the desired power
+        const n = calculateSampleSize(testType, es, alpha, 0.8, tails, groups); // Fixed power at 0.8
+        powers.push(n);
+      }
+    }
+
+    // Create the plot
+    const plotData = [{
+      x: effectSizes,
+      y: powers,
+      type: 'scatter',
+      mode: 'lines+markers',
+      line: {
+        color: 'rgb(49, 130, 189)',
+        width: 2
+      },
+      marker: {
+        color: 'rgb(49, 130, 189)',
+        size: 6
+      }
+    }];
+
+    // Add point for current calculation
+    plotData.push({
+      x: [currentEffectSize],
+      y: [document.getElementById('calcType').value === 'sampleSize' ? power : sampleSize],
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        color: 'rgb(255, 0, 0)',
+        size: 10,
+        symbol: 'circle'
+      },
+      name: 'Current calculation'
+    });
+
+    const layout = {
+      title: document.getElementById('calcType').value === 'sampleSize' ? 'Power Curve' : 'Sample Size Curve',
+      xaxis: {
+        title: 'Effect Size'
+      },
+      yaxis: {
+        title: document.getElementById('calcType').value === 'sampleSize' ? 'Power' : 'Sample Size',
+        range: document.getElementById('calcType').value === 'sampleSize' ? [0, 1] : [0, Math.max(...powers) * 1.1]
+      },
+      margin: {
+        l: 50,
+        r: 50,
+        b: 50,
+        t: 50,
+        pad: 4
+      }
+    };
+
+    Plotly.newPlot('powerCurveContainer', plotData, layout);
+  }
+}
+
+// ========== TOOL 7: Normality & Outlier Checker ========== //
+function normalityCheckerUI(root) {
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Normality & Outlier Checker</h2>
+  <div class="max-w-2xl">
+    <p class="mb-4 text-sm">Check if your data follows a normal distribution and identify potential outliers.</p>
+
+    <div class="mb-4">
+      <label class="block mb-2">Enter your data (one value per line or comma-separated):</label>
+      <textarea id="dataInput" rows="8" class="w-full border p-2" placeholder="Example:
+12.5
+14.2
+13.8
+15.1
+..."></textarea>
+    </div>
+
+    <div class="flex gap-2 mb-4">
+      <button id="checkNormality" class="bg-blue-600 text-white px-3 py-1 rounded">Check Normality & Outliers</button>
+      <button id="generateExample" class="bg-gray-500 text-white px-3 py-1 rounded">Generate Example Data</button>
+    </div>
+
+    <div id="resultsContainer" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-blue-50 p-4 rounded border border-blue-200">
+          <h3 class="font-semibold mb-2">Descriptive Statistics</h3>
+          <table class="w-full text-sm">
+            <tr>
+              <td class="py-1">Sample size (n):</td>
+              <td id="sampleSize" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Mean:</td>
+              <td id="mean" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Median:</td>
+              <td id="median" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Standard deviation:</td>
+              <td id="stdDev" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Minimum:</td>
+              <td id="min" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Maximum:</td>
+              <td id="max" class="py-1 font-semibold text-right"></td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="bg-blue-50 p-4 rounded border border-blue-200">
+          <h3 class="font-semibold mb-2">Normality Test</h3>
+          <p class="mb-2">Shapiro-Wilk Test:</p>
+          <table class="w-full text-sm">
+            <tr>
+              <td class="py-1">W statistic:</td>
+              <td id="swW" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">p-value:</td>
+              <td id="swP" class="py-1 font-semibold text-right"></td>
+            </tr>
+            <tr>
+              <td class="py-1">Interpretation:</td>
+              <td id="swInterpretation" class="py-1 font-semibold text-right"></td>
+            </tr>
+          </table>
+          <p class="mt-2 text-xs">p > 0.05 suggests the data is normally distributed.</p>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <h3 class="font-semibold mb-2">Outlier Detection (Grubbs' Test)</h3>
+        <div id="outliersContainer" class="bg-blue-50 p-4 rounded border border-blue-200">
+          <p id="noOutliersMessage" class="hidden">No significant outliers detected.</p>
+          <div id="outliersList" class="hidden">
+            <p class="mb-2">Potential outliers (α = 0.05):</p>
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="text-left py-1">Value</th>
+                  <th class="text-right py-1">Z-score</th>
+                  <th class="text-right py-1">Significant?</th>
+                </tr>
+              </thead>
+              <tbody id="outliersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <h3 class="font-semibold mb-2">Visualization</h3>
+        <div id="histogramContainer" class="h-64 bg-white border"></div>
+      </div>
+
+      <div class="mt-4">
+        <h3 class="font-semibold mb-2">Recommendations</h3>
+        <div id="recommendations" class="bg-blue-50 p-4 rounded border border-blue-200">
+          <p id="recommendationText"></p>
+          <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="inline-block mt-4 bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Found this helpful? Buy me a coffee!</a>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // Function to parse input data
+  function parseData(input) {
+    // Try to determine if data is comma-separated or line-separated
+    let data = [];
+    if (input.includes(',')) {
+      // Comma-separated
+      data = input.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+    } else {
+      // Line-separated
+      data = input.split(/\r?\n/).map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+    }
+    return data;
+  }
+
+  // Function to calculate descriptive statistics
+  function calculateStats(data) {
+    const n = data.length;
+    const sortedData = [...data].sort((a, b) => a - b);
+    const mean = jStat.mean(data);
+    const median = jStat.median(data);
+    const stdDev = jStat.stdev(data, true); // Sample standard deviation
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+
+    return {
+      n,
+      mean,
+      median,
+      stdDev,
+      min,
+      max,
+      sortedData
+    };
+  }
+
+  // Shapiro-Wilk test for normality
+  function shapiroWilkTest(data) {
+    // This is a simplified implementation of the Shapiro-Wilk test
+    // For a more accurate implementation, a full statistical library would be needed
+
+    // Sort the data
+    const sortedData = [...data].sort((a, b) => a - b);
+    const n = sortedData.length;
+
+    // Check if we have enough data
+    if (n < 3 || n > 50) {
+      return {
+        w: NaN,
+        p: NaN,
+        isNormal: false,
+        message: n < 3 ? "Not enough data for Shapiro-Wilk test (minimum 3 values)" :
+                        "Too many data points for simplified Shapiro-Wilk test (maximum 50)"
+      };
+    }
+
+    // Calculate mean
+    const mean = jStat.mean(sortedData);
+
+    // Calculate sum of squared deviations
+    const ss = sortedData.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0);
+
+    // Coefficients for the Shapiro-Wilk test
+    // These are approximations and would be more accurate with a full implementation
+    const a = [];
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      // Approximation of the coefficients
+      const j = i + 1;
+      a[i] = 0.7 * (j / (n - j + 1)) * Math.sqrt(1 / (j * (n - j + 1)));
+    }
+
+    // Calculate b
+    let b = 0;
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      b += a[i] * (sortedData[n - i - 1] - sortedData[i]);
+    }
+
+    // Calculate W statistic
+    const w = Math.pow(b, 2) / ss;
+
+    // Approximate p-value
+    // This is a very rough approximation
+    let p;
+    if (n <= 10) {
+      // For small samples
+      p = w < 0.8 ? 0.01 : w < 0.9 ? 0.05 : 0.1;
+    } else {
+      // For larger samples
+      const z = (-Math.log(1 - w) - 0.5) / 0.8;
+      p = 1 - jStat.normal.cdf(z, 0, 1);
+    }
+
+    return {
+      w,
+      p,
+      isNormal: p > 0.05,
+      message: p > 0.05 ? "Data appears to be normally distributed" : "Data does not appear to be normally distributed"
+    };
+  }
+
+  // Grubbs' test for outliers
+  function grubbsTest(data, alpha = 0.05) {
+    const n = data.length;
+    const mean = jStat.mean(data);
+    const stdDev = jStat.stdev(data, true);
+
+    // Calculate z-scores
+    const zScores = data.map(x => Math.abs((x - mean) / stdDev));
+
+    // Find maximum z-score and its index
+    const maxZ = Math.max(...zScores);
+    const maxZIndex = zScores.indexOf(maxZ);
+
+    // Critical value for Grubbs' test
+    // This is an approximation
+    const tCrit = jStat.studentt.inv(1 - alpha / (2 * n), n - 2);
+    const gCrit = ((n - 1) * tCrit) / Math.sqrt(n * (n - 2 + Math.pow(tCrit, 2)));
+
+    // Check if the maximum z-score exceeds the critical value
+    const isOutlier = maxZ > gCrit;
+
+    // Identify all potential outliers (z-score > 2.5 is often used as a rule of thumb)
+    const outliers = data.map((value, index) => ({
+      value,
+      zScore: zScores[index],
+      isSignificant: zScores[index] > gCrit
+    })).filter(item => item.zScore > 2.5).sort((a, b) => b.zScore - a.zScore);
+
+    return {
+      outliers,
+      hasOutliers: outliers.some(o => o.isSignificant),
+      maxZ,
+      gCrit
+    };
+  }
+
+  // Function to generate example data
+  function generateExampleData() {
+    // Generate normally distributed data with a few outliers
+    const n = 30;
+    const mean = 100;
+    const stdDev = 15;
+
+    let data = [];
+    for (let i = 0; i < n; i++) {
+      // Box-Muller transform to generate normal distribution
+      const u1 = Math.random();
+      const u2 = Math.random();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      data.push((z * stdDev + mean).toFixed(1));
+    }
+
+    // Add a couple of outliers
+    if (Math.random() > 0.5) {
+      data.push((mean + stdDev * 3.5).toFixed(1)); // High outlier
+    }
+    if (Math.random() > 0.5) {
+      data.push((mean - stdDev * 3.2).toFixed(1)); // Low outlier
+    }
+
+    return data.join('\\n');
+  }
+
+  // Function to create a histogram
+  function createHistogram(data, stats, swTest) {
+    // Create bins for histogram
+    const binCount = Math.min(Math.ceil(Math.sqrt(data.length)), 15);
+    const binWidth = (stats.max - stats.min) / binCount;
+
+    const bins = Array(binCount).fill(0);
+    data.forEach(value => {
+      const binIndex = Math.min(Math.floor((value - stats.min) / binWidth), binCount - 1);
+      bins[binIndex]++;
+    });
+
+    // Create x-values for bins (center of each bin)
+    const xValues = Array(binCount).fill(0).map((_, i) => stats.min + (i + 0.5) * binWidth);
+
+    // Create normal curve for comparison
+    const normalCurve = [];
+    const normalX = [];
+    const step = (stats.max - stats.min) / 100;
+    for (let x = stats.min; x <= stats.max; x += step) {
+      normalX.push(x);
+      // Scale the normal PDF to match histogram height
+      const normalY = jStat.normal.pdf(x, stats.mean, stats.stdDev) * data.length * binWidth;
+      normalCurve.push(normalY);
+    }
+
+    // Create the plot
+    const histogramTrace = {
+      x: xValues,
+      y: bins,
+      type: 'bar',
+      name: 'Histogram',
+      marker: {
+        color: 'rgba(100, 149, 237, 0.6)',
+        line: {
+          color: 'rgba(100, 149, 237, 1)',
+          width: 1
+        }
+      },
+      width: binWidth * 0.9
+    };
+
+    const normalTrace = {
+      x: normalX,
+      y: normalCurve,
+      type: 'scatter',
+      mode: 'lines',
+      name: 'Normal Distribution',
+      line: {
+        color: swTest.isNormal ? 'green' : 'red',
+        width: 2
+      }
+    };
+
+    const layout = {
+      title: 'Data Distribution',
+      xaxis: {
+        title: 'Value'
+      },
+      yaxis: {
+        title: 'Frequency'
+      },
+      bargap: 0.05,
+      shapes: []
+    };
+
+    Plotly.newPlot('histogramContainer', [histogramTrace, normalTrace], layout);
+  }
+
+  // Event listeners
+  document.getElementById('checkNormality').addEventListener('click', () => {
+    const input = document.getElementById('dataInput').value.trim();
+    if (!input) {
+      alert('Please enter data first');
+      return;
+    }
+
+    const data = parseData(input);
+    if (data.length < 3) {
+      alert('Please enter at least 3 valid numeric values');
+      return;
+    }
+
+    // Calculate statistics
+    const stats = calculateStats(data);
+
+    // Perform Shapiro-Wilk test
+    const swTest = shapiroWilkTest(data);
+
+    // Perform Grubbs' test for outliers
+    const outlierTest = grubbsTest(data);
+
+    // Display results
+    document.getElementById('sampleSize').textContent = stats.n;
+    document.getElementById('mean').textContent = stats.mean.toFixed(4);
+    document.getElementById('median').textContent = stats.median.toFixed(4);
+    document.getElementById('stdDev').textContent = stats.stdDev.toFixed(4);
+    document.getElementById('min').textContent = stats.min.toFixed(4);
+    document.getElementById('max').textContent = stats.max.toFixed(4);
+
+    document.getElementById('swW').textContent = swTest.w.toFixed(4);
+    document.getElementById('swP').textContent = swTest.p.toFixed(4);
+    document.getElementById('swInterpretation').textContent = swTest.isNormal ? 'Normal' : 'Non-normal';
+    document.getElementById('swInterpretation').className = 'py-1 font-semibold text-right ' +
+                                                          (swTest.isNormal ? 'text-green-600' : 'text-red-600');
+
+    // Display outliers
+    const noOutliersMessage = document.getElementById('noOutliersMessage');
+    const outliersList = document.getElementById('outliersList');
+    const outliersTable = document.getElementById('outliersTable');
+
+    if (outlierTest.outliers.length === 0) {
+      noOutliersMessage.classList.remove('hidden');
+      outliersList.classList.add('hidden');
+    } else {
+      noOutliersMessage.classList.add('hidden');
+      outliersList.classList.remove('hidden');
+
+      // Clear previous results
+      outliersTable.innerHTML = '';
+
+      // Add each outlier to the table
+      outlierTest.outliers.forEach(outlier => {
+        const row = document.createElement('tr');
+
+        const valueCell = document.createElement('td');
+        valueCell.className = 'py-1';
+        valueCell.textContent = outlier.value.toFixed(4);
+
+        const zScoreCell = document.createElement('td');
+        zScoreCell.className = 'py-1 text-right';
+        zScoreCell.textContent = outlier.zScore.toFixed(4);
+
+        const significantCell = document.createElement('td');
+        significantCell.className = 'py-1 text-right ' + (outlier.isSignificant ? 'text-red-600 font-semibold' : 'text-gray-600');
+        significantCell.textContent = outlier.isSignificant ? 'Yes' : 'No';
+
+        row.appendChild(valueCell);
+        row.appendChild(zScoreCell);
+        row.appendChild(significantCell);
+
+        outliersTable.appendChild(row);
+      });
+    }
+
+    // Create histogram
+    createHistogram(data, stats, swTest);
+
+    // Generate recommendations
+    let recommendation = '';
+    if (!swTest.isNormal) {
+      recommendation += 'Your data does not appear to be normally distributed. Consider: ';
+      recommendation += '<ul class="list-disc pl-5 mt-2">';
+      recommendation += '<li>Using non-parametric tests (e.g., Mann-Whitney U instead of t-test)</li>';
+      recommendation += '<li>Transforming your data (log, square root, etc.)</li>';
+      recommendation += '<li>Using robust statistical methods</li>';
+      recommendation += '</ul>';
+    } else {
+      recommendation += 'Your data appears to be normally distributed. ';
+      recommendation += 'Parametric tests like t-tests and ANOVA are appropriate.';
+    }
+
+    if (outlierTest.hasOutliers) {
+      recommendation += '<p class="mt-2">Your data contains significant outliers. Consider:</p>';
+      recommendation += '<ul class="list-disc pl-5 mt-2">';
+      recommendation += '<li>Checking for data entry errors</li>';
+      recommendation += '<li>Investigating the cause of outliers</li>';
+      recommendation += '<li>Using robust statistical methods</li>';
+      recommendation += '<li>Removing outliers (only if justified)</li>';
+      recommendation += '</ul>';
+    }
+
+    document.getElementById('recommendationText').innerHTML = recommendation;
+
+    // Show results container
+    document.getElementById('resultsContainer').classList.remove('hidden');
+  });
+
+  document.getElementById('generateExample').addEventListener('click', () => {
+    document.getElementById('dataInput').value = generateExampleData();
+  });
+}
+
+// ========== TOOL 8: Heat-Mapper ========== //
+function heatMapperUI(root) {
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Heat-Mapper</h2>
+  <div class="max-w-4xl">
+    <p class="mb-4 text-sm">Create heatmaps from your matrix data. Useful for gene expression, correlation matrices, or any tabular data.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block mb-2">Enter your data (tab or comma-separated):</label>
+        <textarea id="heatmapData" rows="10" class="w-full border p-2 font-mono text-sm" placeholder="Gene1&#9;Sample1&#9;Sample2&#9;Sample3
+Gene2&#9;0.5&#9;1.2&#9;0.8
+Gene3&#9;1.1&#9;0.3&#9;1.5
+Gene4&#9;0.2&#9;0.9&#9;1.7"></textarea>
+
+        <div class="mt-2">
+          <label class="block mb-2">Data format:</label>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center">
+              <input type="radio" name="dataFormat" value="headerRow" class="mr-1" checked>
+              First row is header
+            </label>
+            <label class="inline-flex items-center">
+              <input type="radio" name="dataFormat" value="headerRowCol" class="mr-1">
+              First row & column are headers
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <label class="block mb-2">Delimiter:</label>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center">
+              <input type="radio" name="delimiter" value="tab" class="mr-1" checked>
+              Tab
+            </label>
+            <label class="inline-flex items-center">
+              <input type="radio" name="delimiter" value="comma" class="mr-1">
+              Comma
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="mb-4">
+          <label class="block mb-2">Color scheme:</label>
+          <select id="colorScheme" class="border p-1 w-full">
+            <option value="Viridis">Viridis (default)</option>
+            <option value="Plasma">Plasma</option>
+            <option value="RdBu">Red-Blue</option>
+            <option value="YlGnBu">Yellow-Green-Blue</option>
+            <option value="YlOrRd">Yellow-Orange-Red</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="block mb-2">Clustering:</label>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center">
+              <input type="checkbox" id="clusterRows" class="mr-1">
+              Cluster rows
+            </label>
+            <label class="inline-flex items-center">
+              <input type="checkbox" id="clusterCols" class="mr-1">
+              Cluster columns
+            </label>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block">
+            Cell size:
+            <div class="flex items-center">
+              <input type="range" id="cellSizeSlider" min="10" max="50" value="25" class="w-3/4 mr-2">
+              <span id="cellSizeValue">25px</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="mb-4">
+          <label class="block">
+            Show values in cells:
+            <input type="checkbox" id="showValues" class="ml-2">
+          </label>
+        </div>
+
+        <button id="generateHeatmap" class="bg-blue-600 text-white px-4 py-2 rounded">Generate Heatmap</button>
+        <button id="generateExample" class="bg-gray-500 text-white px-3 py-2 rounded ml-2">Example Data</button>
+      </div>
+    </div>
+
+    <div id="heatmapContainer" class="mt-6 hidden">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-semibold">Heatmap</h3>
+        <button id="downloadHeatmap" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Download PNG</button>
+      </div>
+      <div id="heatmapPlot" class="border bg-white"></div>
+      <div class="mt-4 text-right">
+        <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="inline-block bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Found this helpful? Buy me a coffee!</a>
+      </div>
+    </div>
+  </div>`;
+
+  // Update cell size value display
+  const cellSizeSlider = document.getElementById('cellSizeSlider');
+  const cellSizeValue = document.getElementById('cellSizeValue');
+
+  cellSizeSlider.addEventListener('input', () => {
+    cellSizeValue.textContent = `${cellSizeSlider.value}px`;
+  });
+
+  // Generate example data
+  document.getElementById('generateExample').addEventListener('click', () => {
+    const exampleData =
+`Gene\tSample1\tSample2\tSample3\tSample4\tSample5
+BRCA1\t0.5\t1.2\t0.8\t1.7\t0.3
+TP53\t1.1\t0.3\t1.5\t0.6\t1.2
+EGFR\t0.2\t0.9\t1.7\t1.3\t0.5
+KRAS\t1.5\t0.7\t0.4\t0.9\t1.8
+PTEN\t0.8\t1.4\t0.6\t1.1\t0.7
+AKT1\t1.3\t0.5\t1.0\t0.2\t1.6
+PIK3CA\t0.6\t1.1\t0.9\t1.4\t0.4`;
+
+    document.getElementById('heatmapData').value = exampleData;
+    document.querySelector('input[name="dataFormat"][value="headerRowCol"]').checked = true;
+    document.querySelector('input[name="delimiter"][value="tab"]').checked = true;
+  });
+
+  // Parse the input data
+  function parseHeatmapData() {
+    const input = document.getElementById('heatmapData').value.trim();
+    if (!input) {
+      throw new Error('Please enter data');
+    }
+
+    const dataFormat = document.querySelector('input[name="dataFormat"]:checked').value;
+    const delimiterType = document.querySelector('input[name="delimiter"]:checked').value;
+    const delimiter = delimiterType === 'tab' ? '\t' : ',';
+
+    const lines = input.split(/\r?\n/);
+    if (lines.length < 2) {
+      throw new Error('Please enter at least two rows of data');
+    }
+
+    const rows = lines.map(line => line.split(delimiter));
+
+    // Check if all rows have the same number of columns
+    const firstRowLength = rows[0].length;
+    const invalidRow = rows.findIndex(row => row.length !== firstRowLength);
+    if (invalidRow !== -1) {
+      throw new Error(`Row ${invalidRow + 1} has a different number of columns than the first row`);
+    }
+
+    let data, xLabels, yLabels;
+
+    if (dataFormat === 'headerRow') {
+      // First row is header, no row labels
+      xLabels = rows[0].map(x => x.trim());
+      yLabels = rows.slice(1).map((_, i) => `Row ${i + 1}`);
+      data = rows.slice(1).map(row => row.map(cell => parseFloat(cell) || 0));
+    } else {
+      // First row and first column are headers
+      xLabels = rows[0].slice(1).map(x => x.trim());
+      yLabels = rows.slice(1).map(row => row[0].trim());
+      data = rows.slice(1).map(row => row.slice(1).map(cell => parseFloat(cell) || 0));
+    }
+
+    return { data, xLabels, yLabels };
+  }
+
+  // Simple hierarchical clustering algorithm
+  function clusterData(data, axis) {
+    // This is a very simplified clustering algorithm
+    // For production use, a more sophisticated algorithm would be better
+
+    // Calculate distance matrix
+    const n = axis === 0 ? data.length : data[0].length;
+    const distMatrix = Array(n).fill().map(() => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        let dist = 0;
+
+        if (axis === 0) {
+          // Cluster rows
+          for (let k = 0; k < data[0].length; k++) {
+            dist += Math.pow(data[i][k] - data[j][k], 2);
+          }
+        } else {
+          // Cluster columns
+          for (let k = 0; k < data.length; k++) {
+            dist += Math.pow(data[k][i] - data[k][j], 2);
+          }
+        }
+
+        dist = Math.sqrt(dist);
+        distMatrix[i][j] = dist;
+        distMatrix[j][i] = dist;
+      }
+    }
+
+    // Simple greedy clustering
+    const order = Array.from({ length: n }, (_, i) => i);
+
+    // Start with the first element
+    const visited = [0];
+
+    // Find the closest unvisited element to any visited element
+    while (visited.length < n) {
+      let minDist = Infinity;
+      let nextIdx = -1;
+
+      for (const i of visited) {
+        for (let j = 0; j < n; j++) {
+          if (!visited.includes(j) && distMatrix[i][j] < minDist) {
+            minDist = distMatrix[i][j];
+            nextIdx = j;
+          }
+        }
+      }
+
+      if (nextIdx === -1) break;
+      visited.push(nextIdx);
+    }
+
+    return visited;
+  }
+
+  // Generate the heatmap
+  document.getElementById('generateHeatmap').addEventListener('click', () => {
+    try {
+      const { data, xLabels, yLabels } = parseHeatmapData();
+      const colorScheme = document.getElementById('colorScheme').value;
+      const clusterRows = document.getElementById('clusterRows').checked;
+      const clusterCols = document.getElementById('clusterCols').checked;
+      const cellSize = parseInt(document.getElementById('cellSizeSlider').value);
+      const showValues = document.getElementById('showValues').checked;
+
+      // Apply clustering if selected
+      let rowOrder = Array.from({ length: data.length }, (_, i) => i);
+      let colOrder = Array.from({ length: data[0].length }, (_, i) => i);
+
+      if (clusterRows) {
+        rowOrder = clusterData(data, 0);
+      }
+
+      if (clusterCols) {
+        colOrder = clusterData(data, 1);
+      }
+
+      // Reorder data and labels
+      const reorderedData = rowOrder.map(i => colOrder.map(j => data[i][j]));
+      const reorderedYLabels = rowOrder.map(i => yLabels[i]);
+      const reorderedXLabels = colOrder.map(j => xLabels[j]);
+
+      // Create heatmap
+      const heatmapData = [{
+        z: reorderedData,
+        x: reorderedXLabels,
+        y: reorderedYLabels,
+        type: 'heatmap',
+        colorscale: colorScheme,
+        showscale: true,
+        text: showValues ? reorderedData.map(row => row.map(val => val.toFixed(2))) : null,
+        hoverinfo: 'x+y+z',
+        hovertemplate: '%{y}<br>%{x}<br>Value: %{z}<extra></extra>'
+      }];
+
+      const layout = {
+        title: 'Heatmap',
+        height: reorderedData.length * cellSize + 200,
+        width: reorderedData[0].length * cellSize + 200,
+        xaxis: {
+          title: '',
+          tickangle: -45
+        },
+        yaxis: {
+          title: ''
+        },
+        margin: {
+          l: 150,
+          r: 50,
+          b: 150,
+          t: 50,
+          pad: 4
+        }
+      };
+
+      const config = {
+        responsive: true,
+        toImageButtonOptions: {
+          format: 'png',
+          filename: 'heatmap',
+          height: layout.height,
+          width: layout.width,
+          scale: 2
+        }
+      };
+
+      Plotly.newPlot('heatmapPlot', heatmapData, layout, config);
+      document.getElementById('heatmapContainer').classList.remove('hidden');
+
+      // Set up download button
+      document.getElementById('downloadHeatmap').onclick = () => {
+        Plotly.downloadImage('heatmapPlot', {
+          format: 'png',
+          filename: 'heatmap',
+          height: layout.height,
+          width: layout.width,
+          scale: 2
+        });
+      };
+    } catch (error) {
+      alert(error.message || 'Error generating heatmap');
+    }
+  });
+}
+
+// ========== TOOL 9: Unit & Concentration Converter ========== //
+function unitConverterUI(root) {
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Unit & Concentration Converter</h2>
+  <div class="max-w-2xl">
+    <p class="mb-4 text-sm">Convert between different units and calculate concentrations for lab work.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Unit Converter -->
+      <div class="bg-blue-50 p-4 rounded border border-blue-200">
+        <h3 class="font-semibold mb-3">Unit Converter</h3>
+
+        <div class="mb-4">
+          <label class="block mb-2">Conversion type:</label>
+          <select id="conversionType" class="border p-1 w-full">
+            <option value="length">Length</option>
+            <option value="volume">Volume</option>
+            <option value="mass">Mass</option>
+            <option value="temperature">Temperature</option>
+            <option value="time">Time</option>
+            <option value="pressure">Pressure</option>
+            <option value="energy">Energy</option>
+            <option value="centrifuge">Centrifuge (rpm ↔ rcf/g)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block mb-1">From:</label>
+            <div class="flex">
+              <input type="number" id="fromValue" class="border p-1 w-3/5" value="1" step="any">
+              <select id="fromUnit" class="border p-1 w-2/5"></select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1">To:</label>
+            <div class="flex">
+              <input type="number" id="toValue" class="border p-1 w-3/5" readonly>
+              <select id="toUnit" class="border p-1 w-2/5"></select>
+            </div>
+          </div>
+        </div>
+
+        <button id="convertUnits" class="bg-blue-600 text-white px-3 py-1 rounded">Convert</button>
+        <button id="swapUnits" class="bg-gray-500 text-white px-3 py-1 rounded ml-2">Swap</button>
+      </div>
+
+      <!-- Concentration Calculator -->
+      <div class="bg-blue-50 p-4 rounded border border-blue-200">
+        <h3 class="font-semibold mb-3">Concentration Calculator</h3>
+
+        <div class="mb-4">
+          <label class="block mb-2">Calculation type:</label>
+          <select id="calcType" class="border p-1 w-full">
+            <option value="molarToMass">Molarity to Mass Concentration</option>
+            <option value="massToMolar">Mass Concentration to Molarity</option>
+            <option value="dilution">Dilution Calculator</option>
+            <option value="massPercent">Mass Percent Solution</option>
+          </select>
+        </div>
+
+        <div id="molarToMassForm">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block mb-1">Molarity:</label>
+              <div class="flex">
+                <input type="number" id="molarityInput" class="border p-1 w-3/5" value="1" step="any">
+                <select id="molarityUnit" class="border p-1 w-2/5">
+                  <option value="1">M</option>
+                  <option value="0.001">mM</option>
+                  <option value="0.000001">µM</option>
+                  <option value="0.000000001">nM</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block mb-1">Molecular Weight:</label>
+              <div class="flex">
+                <input type="number" id="mwInput" class="border p-1 w-3/5" value="58.44" step="any">
+                <span class="border p-1 w-2/5 bg-gray-100 text-center">g/mol</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-1">Result:</label>
+            <div class="flex">
+              <input type="number" id="massConcentrationResult" class="border p-1 w-3/5" readonly>
+              <select id="massConcentrationUnit" class="border p-1 w-2/5">
+                <option value="g/L">g/L</option>
+                <option value="mg/mL">mg/mL</option>
+                <option value="µg/µL">µg/µL</option>
+                <option value="mg/L">mg/L</option>
+                <option value="µg/mL">µg/mL</option>
+                <option value="ng/µL">ng/µL</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="massToMolarForm" class="hidden">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block mb-1">Concentration:</label>
+              <div class="flex">
+                <input type="number" id="massInput" class="border p-1 w-3/5" value="1" step="any">
+                <select id="massUnit" class="border p-1 w-2/5">
+                  <option value="g/L">g/L</option>
+                  <option value="mg/mL">mg/mL</option>
+                  <option value="µg/µL">µg/µL</option>
+                  <option value="mg/L">mg/L</option>
+                  <option value="µg/mL">µg/mL</option>
+                  <option value="ng/µL">ng/µL</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block mb-1">Molecular Weight:</label>
+              <div class="flex">
+                <input type="number" id="mwInput2" class="border p-1 w-3/5" value="58.44" step="any">
+                <span class="border p-1 w-2/5 bg-gray-100 text-center">g/mol</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-1">Result:</label>
+            <div class="flex">
+              <input type="number" id="molarityResult" class="border p-1 w-3/5" readonly>
+              <select id="molarityResultUnit" class="border p-1 w-2/5">
+                <option value="1">M</option>
+                <option value="0.001">mM</option>
+                <option value="0.000001">µM</option>
+                <option value="0.000000001">nM</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="dilutionForm" class="hidden">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block mb-1">Stock Concentration:</label>
+              <div class="flex">
+                <input type="number" id="stockConc" class="border p-1 w-3/5" value="1" step="any">
+                <select id="stockConcUnit" class="border p-1 w-2/5">
+                  <option value="M">M</option>
+                  <option value="mM">mM</option>
+                  <option value="µM">µM</option>
+                  <option value="nM">nM</option>
+                  <option value="mg/mL">mg/mL</option>
+                  <option value="µg/mL">µg/mL</option>
+                  <option value="%">%</option>
+                  <option value="X">X</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block mb-1">Desired Concentration:</label>
+              <div class="flex">
+                <input type="number" id="desiredConc" class="border p-1 w-3/5" value="0.1" step="any">
+                <select id="desiredConcUnit" class="border p-1 w-2/5">
+                  <option value="M">M</option>
+                  <option value="mM">mM</option>
+                  <option value="µM">µM</option>
+                  <option value="nM">nM</option>
+                  <option value="mg/mL">mg/mL</option>
+                  <option value="µg/mL">µg/mL</option>
+                  <option value="%">%</option>
+                  <option value="X">X</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-1">Final Volume:</label>
+            <div class="flex">
+              <input type="number" id="finalVolume" class="border p-1 w-3/5" value="10" step="any">
+              <select id="finalVolumeUnit" class="border p-1 w-2/5">
+                <option value="L">L</option>
+                <option value="mL" selected>mL</option>
+                <option value="µL">µL</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-1">Result:</label>
+            <div id="dilutionResult" class="p-2 bg-white border rounded">
+              Add <span id="stockVolume" class="font-semibold">-</span> of stock to <span id="diluentVolume" class="font-semibold">-</span> of diluent.
+            </div>
+          </div>
+        </div>
+
+        <div id="massPercentForm" class="hidden">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block mb-1">Desired Percentage:</label>
+              <div class="flex">
+                <input type="number" id="percentDesired" class="border p-1 w-3/5" value="10" step="any" min="0" max="100">
+                <span class="border p-1 w-2/5 bg-gray-100 text-center">%</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block mb-1">Final Volume/Mass:</label>
+              <div class="flex">
+                <input type="number" id="finalAmount" class="border p-1 w-3/5" value="100" step="any">
+                <select id="finalAmountUnit" class="border p-1 w-2/5">
+                  <option value="g">g</option>
+                  <option value="mL" selected>mL</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-1">Result:</label>
+            <div id="percentResult" class="p-2 bg-white border rounded">
+              Add <span id="soluteAmount" class="font-semibold">-</span> of solute to <span id="solventAmount" class="font-semibold">-</span> of solvent.
+            </div>
+          </div>
+        </div>
+
+        <button id="calculateConcentration" class="bg-blue-600 text-white px-3 py-1 rounded">Calculate</button>
+      </div>
+    </div>
+
+    <div class="mt-6 text-sm text-gray-600">
+      <p class="font-semibold">Common Molecular Weights:</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="58.44" data-name="NaCl">NaCl: 58.44 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="342.3" data-name="Sucrose">Sucrose: 342.3 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="180.16" data-name="Glucose">Glucose: 180.16 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="74.55" data-name="KCl">KCl: 74.55 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="121.14" data-name="Tris Base">Tris Base: 121.14 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="174.2" data-name="EDTA">EDTA: 174.2 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="294.1" data-name="HEPES">HEPES: 294.1 g/mol</button>
+        <button class="mw-btn border p-1 hover:bg-blue-100" data-mw="18.02" data-name="Water">Water: 18.02 g/mol</button>
+      </div>
+
+      <div class="mt-4 text-right">
+        <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="inline-block bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Found this helpful? Buy me a coffee!</a>
+      </div>
+    </div>
+  </div>`;
+
+  // Unit conversion data
+  const unitData = {
+    length: {
+      m: 1,
+      km: 1000,
+      cm: 0.01,
+      mm: 0.001,
+      µm: 0.000001,
+      nm: 0.000000001,
+      in: 0.0254,
+      ft: 0.3048,
+      yd: 0.9144,
+      mi: 1609.344
+    },
+    volume: {
+      L: 1,
+      mL: 0.001,
+      µL: 0.000001,
+      nL: 0.000000001,
+      'cm³': 0.001,
+      'm³': 1000,
+      'in³': 0.000016387064,
+      'ft³': 0.028316846592,
+      'gal (US)': 0.003785411784,
+      'qt (US)': 0.000946352946,
+      'pt (US)': 0.000473176473,
+      'fl oz (US)': 0.0000295735296
+    },
+    mass: {
+      g: 1,
+      kg: 1000,
+      mg: 0.001,
+      µg: 0.000001,
+      ng: 0.000000001,
+      lb: 453.59237,
+      oz: 28.349523125,
+      ton: 907184.74
+    },
+    temperature: {
+      '°C': 'C',
+      '°F': 'F',
+      K: 'K'
+    },
+    time: {
+      s: 1,
+      min: 60,
+      h: 3600,
+      day: 86400,
+      week: 604800,
+      month: 2592000,
+      year: 31536000,
+      ms: 0.001,
+      µs: 0.000001,
+      ns: 0.000000001
+    },
+    pressure: {
+      Pa: 1,
+      kPa: 1000,
+      MPa: 1000000,
+      bar: 100000,
+      atm: 101325,
+      mmHg: 133.322,
+      torr: 133.322,
+      psi: 6894.76
+    },
+    energy: {
+      J: 1,
+      kJ: 1000,
+      cal: 4.184,
+      kcal: 4184,
+      eV: 1.602176634e-19,
+      kWh: 3600000,
+      'BTU (IT)': 1055.05585262
+    }
+  };
+
+  // Populate unit selectors
+  function populateUnitSelectors() {
+    const conversionType = document.getElementById('conversionType').value;
+    const fromUnitSelect = document.getElementById('fromUnit');
+    const toUnitSelect = document.getElementById('toUnit');
+
+    // Clear existing options
+    fromUnitSelect.innerHTML = '';
+    toUnitSelect.innerHTML = '';
+
+    if (conversionType === 'centrifuge') {
+      // Special case for centrifuge
+      fromUnitSelect.innerHTML = '<option value="rpm">rpm</option><option value="rcf">rcf (× g)</option>';
+      toUnitSelect.innerHTML = '<option value="rcf">rcf (× g)</option><option value="rpm">rpm</option>';
+    } else {
+      // Regular unit conversion
+      const units = unitData[conversionType];
+
+      for (const unit in units) {
+        fromUnitSelect.add(new Option(unit, unit));
+        toUnitSelect.add(new Option(unit, unit));
+      }
+
+      // Set default "to" unit to something different than "from" unit
+      if (toUnitSelect.options.length > 1) {
+        toUnitSelect.selectedIndex = 1;
+      }
+    }
+  }
+
+  // Handle conversion type change
+  document.getElementById('conversionType').addEventListener('change', populateUnitSelectors);
+
+  // Initialize unit selectors
+  populateUnitSelectors();
+
+  // Handle unit conversion
+  document.getElementById('convertUnits').addEventListener('click', () => {
+    const conversionType = document.getElementById('conversionType').value;
+    const fromValue = parseFloat(document.getElementById('fromValue').value);
+    const fromUnit = document.getElementById('fromUnit').value;
+    const toUnit = document.getElementById('toUnit').value;
+
+    if (isNaN(fromValue)) {
+      alert('Please enter a valid number');
+      return;
+    }
+
+    let result;
+
+    if (conversionType === 'centrifuge') {
+      // Special case for centrifuge conversion (rpm ↔ rcf)
+      // rcf = 1.118 × 10^-5 × r × rpm²
+      // where r is the radius in cm (default to 10 cm if not specified)
+      const radius = 10; // cm
+
+      if (fromUnit === 'rpm' && toUnit === 'rcf') {
+        result = 1.118e-5 * radius * Math.pow(fromValue, 2);
+      } else if (fromUnit === 'rcf' && toUnit === 'rpm') {
+        result = Math.sqrt(fromValue / (1.118e-5 * radius));
+      }
+    } else if (conversionType === 'temperature') {
+      // Special case for temperature conversion
+      if (fromUnit === '°C' && toUnit === '°F') {
+        result = (fromValue * 9/5) + 32;
+      } else if (fromUnit === '°F' && toUnit === '°C') {
+        result = (fromValue - 32) * 5/9;
+      } else if (fromUnit === '°C' && toUnit === 'K') {
+        result = fromValue + 273.15;
+      } else if (fromUnit === 'K' && toUnit === '°C') {
+        result = fromValue - 273.15;
+      } else if (fromUnit === '°F' && toUnit === 'K') {
+        result = (fromValue - 32) * 5/9 + 273.15;
+      } else if (fromUnit === 'K' && toUnit === '°F') {
+        result = (fromValue - 273.15) * 9/5 + 32;
+      } else {
+        result = fromValue; // Same unit
+      }
+    } else {
+      // Regular unit conversion
+      const units = unitData[conversionType];
+      const baseValue = fromValue * units[fromUnit];
+      result = baseValue / units[toUnit];
+    }
+
+    document.getElementById('toValue').value = result.toPrecision(6);
+  });
+
+  // Handle unit swap
+  document.getElementById('swapUnits').addEventListener('click', () => {
+    const fromUnitSelect = document.getElementById('fromUnit');
+    const toUnitSelect = document.getElementById('toUnit');
+    const fromValue = document.getElementById('fromValue');
+    const toValue = document.getElementById('toValue');
+
+    // Swap units
+    const tempUnit = fromUnitSelect.value;
+    fromUnitSelect.value = toUnitSelect.value;
+    toUnitSelect.value = tempUnit;
+
+    // Swap values if toValue has a value
+    if (toValue.value) {
+      const tempValue = fromValue.value;
+      fromValue.value = toValue.value;
+      toValue.value = tempValue;
+    }
+  });
+
+  // Handle calculation type change
+  document.getElementById('calcType').addEventListener('change', () => {
+    const calcType = document.getElementById('calcType').value;
+
+    // Hide all forms
+    document.getElementById('molarToMassForm').classList.add('hidden');
+    document.getElementById('massToMolarForm').classList.add('hidden');
+    document.getElementById('dilutionForm').classList.add('hidden');
+    document.getElementById('massPercentForm').classList.add('hidden');
+
+    // Show selected form
+    document.getElementById(calcType + 'Form').classList.remove('hidden');
+  });
+
+  // Handle molecular weight buttons
+  document.querySelectorAll('.mw-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mw = btn.getAttribute('data-mw');
+      document.getElementById('mwInput').value = mw;
+      document.getElementById('mwInput2').value = mw;
+    });
+  });
+
+  // Handle concentration calculations
+  document.getElementById('calculateConcentration').addEventListener('click', () => {
+    const calcType = document.getElementById('calcType').value;
+
+    try {
+      if (calcType === 'molarToMass') {
+        // Molarity to mass concentration
+        const molarity = parseFloat(document.getElementById('molarityInput').value);
+        const molarityUnit = parseFloat(document.getElementById('molarityUnit').value);
+        const mw = parseFloat(document.getElementById('mwInput').value);
+        const massUnit = document.getElementById('massConcentrationUnit').value;
+
+        if (isNaN(molarity) || isNaN(mw)) {
+          throw new Error('Please enter valid numbers');
+        }
+
+        // Calculate mass concentration in g/L
+        const massConcentration = molarity * molarityUnit * mw;
+
+        // Convert to selected unit
+        let result;
+        switch (massUnit) {
+          case 'g/L': result = massConcentration; break;
+          case 'mg/mL': result = massConcentration; break; // Same as g/L
+          case 'µg/µL': result = massConcentration; break; // Same as g/L
+          case 'mg/L': result = massConcentration * 1000; break;
+          case 'µg/mL': result = massConcentration; break; // Same as mg/mL
+          case 'ng/µL': result = massConcentration; break; // Same as µg/mL
+          default: result = massConcentration;
+        }
+
+        document.getElementById('massConcentrationResult').value = result.toPrecision(6);
+      }
+      else if (calcType === 'massToMolar') {
+        // Mass concentration to molarity
+        const massConc = parseFloat(document.getElementById('massInput').value);
+        const massUnit = document.getElementById('massUnit').value;
+        const mw = parseFloat(document.getElementById('mwInput2').value);
+        const molarityUnit = parseFloat(document.getElementById('molarityResultUnit').value);
+
+        if (isNaN(massConc) || isNaN(mw)) {
+          throw new Error('Please enter valid numbers');
+        }
+
+        // Convert to g/L
+        let massInGPerL;
+        switch (massUnit) {
+          case 'g/L': massInGPerL = massConc; break;
+          case 'mg/mL': massInGPerL = massConc; break; // Same as g/L
+          case 'µg/µL': massInGPerL = massConc; break; // Same as g/L
+          case 'mg/L': massInGPerL = massConc / 1000; break;
+          case 'µg/mL': massInGPerL = massConc / 1000; break; // Same as mg/L
+          case 'ng/µL': massInGPerL = massConc / 1000; break; // Same as µg/mL
+          default: massInGPerL = massConc;
+        }
+
+        // Calculate molarity in M
+        const molarity = massInGPerL / mw;
+
+        // Convert to selected unit
+        const result = molarity / molarityUnit;
+
+        document.getElementById('molarityResult').value = result.toPrecision(6);
+      }
+      else if (calcType === 'dilution') {
+        // Dilution calculator (C1V1 = C2V2)
+        const stockConc = parseFloat(document.getElementById('stockConc').value);
+        const stockConcUnit = document.getElementById('stockConcUnit').value;
+        const desiredConc = parseFloat(document.getElementById('desiredConc').value);
+        const desiredConcUnit = document.getElementById('desiredConcUnit').value;
+        const finalVolume = parseFloat(document.getElementById('finalVolume').value);
+        const finalVolumeUnit = document.getElementById('finalVolumeUnit').value;
+
+        if (isNaN(stockConc) || isNaN(desiredConc) || isNaN(finalVolume)) {
+          throw new Error('Please enter valid numbers');
+        }
+
+        // Check if units are compatible
+        if (stockConcUnit !== desiredConcUnit) {
+          throw new Error('Stock and desired concentration units must be the same');
+        }
+
+        // Calculate stock volume (V1 = C2V2/C1)
+        const stockVolume = (desiredConc * finalVolume) / stockConc;
+        const diluentVolume = finalVolume - stockVolume;
+
+        if (stockVolume > finalVolume) {
+          throw new Error('Stock concentration is too low to achieve desired concentration');
+        }
+
+        // Display result
+        document.getElementById('stockVolume').textContent = `${stockVolume.toFixed(3)} ${finalVolumeUnit}`;
+        document.getElementById('diluentVolume').textContent = `${diluentVolume.toFixed(3)} ${finalVolumeUnit}`;
+      }
+      else if (calcType === 'massPercent') {
+        // Mass percent solution
+        const percentDesired = parseFloat(document.getElementById('percentDesired').value);
+        const finalAmount = parseFloat(document.getElementById('finalAmount').value);
+        const finalAmountUnit = document.getElementById('finalAmountUnit').value;
+
+        if (isNaN(percentDesired) || isNaN(finalAmount)) {
+          throw new Error('Please enter valid numbers');
+        }
+
+        if (percentDesired < 0 || percentDesired > 100) {
+          throw new Error('Percentage must be between 0 and 100');
+        }
+
+        // Calculate solute amount
+        const soluteAmount = (percentDesired / 100) * finalAmount;
+        const solventAmount = finalAmount - soluteAmount;
+
+        // Display result
+        document.getElementById('soluteAmount').textContent = `${soluteAmount.toFixed(3)} ${finalAmountUnit}`;
+        document.getElementById('solventAmount').textContent = `${solventAmount.toFixed(3)} ${finalAmountUnit}`;
+      }
+    } catch (error) {
+      alert(error.message || 'Calculation error');
+    }
+  });
+}
+
+// ========== TOOL 10: Quick Cell-Counter (Beta) ========== //
+function cellCounterUI(root) {
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Quick Cell-Counter (Beta)</h2>
+  <div class="max-w-4xl">
+    <p class="mb-4 text-sm">Count cells in microscopy images. <span class="text-red-600 font-semibold">Beta feature</span> - works best with high-contrast images.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <div class="mb-4">
+          <label class="block mb-2">Upload image:</label>
+          <input type="file" id="imageUpload" accept="image/*" class="border p-2 w-full">
+        </div>
+
+        <div class="mb-4">
+          <p class="text-sm text-gray-600 mb-2">Or drag and drop an image onto the page</p>
+          <div id="dropZone" class="border-2 border-dashed border-gray-300 p-8 text-center bg-gray-50">
+            <p>Drop image here</p>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <button id="loadSampleImage" class="bg-gray-500 text-white px-3 py-1 rounded">Load Sample Image</button>
+        </div>
+
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Detection Settings</h3>
+
+          <div class="mb-2">
+            <label class="block">
+              Threshold:
+              <div class="flex items-center">
+                <input type="range" id="thresholdSlider" min="0" max="255" value="128" class="w-3/4 mr-2">
+                <span id="thresholdValue">128</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="mb-2">
+            <label class="block">
+              Min cell size (px):
+              <div class="flex items-center">
+                <input type="range" id="minSizeSlider" min="10" max="500" value="100" class="w-3/4 mr-2">
+                <span id="minSizeValue">100</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="mb-2">
+            <label class="block">
+              Max cell size (px):
+              <div class="flex items-center">
+                <input type="range" id="maxSizeSlider" min="500" max="5000" value="2000" class="w-3/4 mr-2">
+                <span id="maxSizeValue">2000</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="mb-2">
+            <label class="block">
+              <input type="checkbox" id="invertImage" class="mr-1">
+              Invert image (for dark cells on light background)
+            </label>
+          </div>
+
+          <button id="processImage" class="bg-blue-600 text-white px-4 py-2 rounded mt-2" disabled>Count Cells</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Preview</h3>
+          <div class="relative">
+            <canvas id="previewCanvas" class="border bg-gray-100 w-full h-64 object-contain"></canvas>
+            <div id="loadingOverlay" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+              <p class="text-white">Loading OpenCV.js...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="resultsContainer" class="hidden">
+          <div class="bg-blue-50 p-4 rounded border border-blue-200 mb-4">
+            <h3 class="font-semibold mb-2">Results</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <p>Cell count: <span id="cellCount" class="font-semibold text-xl">-</span></p>
+                <p class="text-sm text-gray-600 mt-1">Estimated density: <span id="cellDensity">-</span> cells/mm²</p>
+              </div>
+              <div class="text-right">
+                <button id="downloadResult" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Download Image</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h3 class="font-semibold mb-2">Processed Image</h3>
+            <canvas id="outputCanvas" class="border bg-white w-full"></canvas>
+          </div>
+        </div>
+
+        <div class="mt-4 text-right">
+          <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="inline-block bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Found this helpful? Buy me a coffee!</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 text-sm text-gray-600">
+      <p class="font-semibold">Tips:</p>
+      <ul class="list-disc pl-5 space-y-1 mt-2">
+        <li>Works best with high-contrast, well-focused images</li>
+        <li>Adjust threshold to improve cell detection</li>
+        <li>Set min/max size to filter out noise and clumps</li>
+        <li>For dark cells on light background, check "Invert image"</li>
+        <li>This is a beta feature and may not work perfectly for all images</li>
+      </ul>
+    </div>
+  </div>`;
+
+  // Variables
+  let currentImage = null;
+  let processedImage = null;
+  let imageWidth = 0;
+  let imageHeight = 0;
+
+  // Get DOM elements
+  const imageUpload = document.getElementById('imageUpload');
+  const dropZone = document.getElementById('dropZone');
+  const previewCanvas = document.getElementById('previewCanvas');
+  const outputCanvas = document.getElementById('outputCanvas');
+  const processButton = document.getElementById('processImage');
+  const loadSampleButton = document.getElementById('loadSampleImage');
+  const thresholdSlider = document.getElementById('thresholdSlider');
+  const thresholdValue = document.getElementById('thresholdValue');
+  const minSizeSlider = document.getElementById('minSizeSlider');
+  const minSizeValue = document.getElementById('minSizeValue');
+  const maxSizeSlider = document.getElementById('maxSizeSlider');
+  const maxSizeValue = document.getElementById('maxSizeValue');
+  const invertCheckbox = document.getElementById('invertImage');
+  const resultsContainer = document.getElementById('resultsContainer');
+  const cellCountElement = document.getElementById('cellCount');
+  const cellDensityElement = document.getElementById('cellDensity');
+  const downloadButton = document.getElementById('downloadResult');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+
+  // Set up canvas contexts
+  const previewCtx = previewCanvas.getContext('2d');
+  const outputCtx = outputCanvas.getContext('2d');
+
+  // Update slider value displays
+  thresholdSlider.addEventListener('input', () => {
+    thresholdValue.textContent = thresholdSlider.value;
+  });
+
+  minSizeSlider.addEventListener('input', () => {
+    minSizeValue.textContent = minSizeSlider.value;
+  });
+
+  maxSizeSlider.addEventListener('input', () => {
+    maxSizeValue.textContent = maxSizeSlider.value;
+  });
+
+  // Handle file upload
+  imageUpload.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      loadImage(e.target.files[0]);
+    }
+  });
+
+  // Handle drag and drop
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-blue-500');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-blue-500');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-blue-500');
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      loadImage(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Load sample image
+  loadSampleButton.addEventListener('click', () => {
+    // Sample image URL (a public domain cell image)
+    const sampleImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Glioblastoma_cells.jpg/640px-Glioblastoma_cells.jpg';
+
+    fetch(sampleImageUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const file = new File([blob], 'sample-cells.jpg', { type: 'image/jpeg' });
+        loadImage(file);
+      })
+      .catch(error => {
+        console.error('Error loading sample image:', error);
+        alert('Failed to load sample image. Please try uploading your own image.');
+      });
+  });
+
+  // Process image button
+  processButton.addEventListener('click', () => {
+    if (!currentImage) {
+      alert('Please upload an image first');
+      return;
+    }
+
+    // Show loading overlay
+    loadingOverlay.classList.remove('hidden');
+
+    // Load OpenCV.js if not already loaded
+    if (!window.cv) {
+      loadOpenCV(() => processImageWithOpenCV());
+    } else {
+      processImageWithOpenCV();
+    }
+  });
+
+  // Download result button
+  downloadButton.addEventListener('click', () => {
+    if (!processedImage) return;
+
+    const link = document.createElement('a');
+    link.download = 'cell-count-result.png';
+    link.href = outputCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // Load image function
+  function loadImage(file) {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        // Store image dimensions
+        imageWidth = img.width;
+        imageHeight = img.height;
+
+        // Resize canvas to fit image proportionally
+        const maxWidth = previewCanvas.parentElement.clientWidth;
+        const maxHeight = 300;
+
+        let displayWidth = img.width;
+        let displayHeight = img.height;
+
+        if (displayWidth > maxWidth) {
+          const ratio = maxWidth / displayWidth;
+          displayWidth = maxWidth;
+          displayHeight = displayHeight * ratio;
+        }
+
+        if (displayHeight > maxHeight) {
+          const ratio = maxHeight / displayHeight;
+          displayHeight = maxHeight;
+          displayWidth = displayWidth * ratio;
+        }
+
+        previewCanvas.width = displayWidth;
+        previewCanvas.height = displayHeight;
+
+        // Draw image on preview canvas
+        previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        previewCtx.drawImage(img, 0, 0, displayWidth, displayHeight);
+
+        // Store image for processing
+        currentImage = img;
+
+        // Enable process button
+        processButton.disabled = false;
+
+        // Hide results if a new image is loaded
+        resultsContainer.classList.add('hidden');
+      };
+
+      img.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // Process image with OpenCV
+  function processImageWithOpenCV() {
+    try {
+      // Get parameters
+      const threshold = parseInt(thresholdSlider.value);
+      const minSize = parseInt(minSizeSlider.value);
+      const maxSize = parseInt(maxSizeSlider.value);
+      const invert = invertCheckbox.checked;
+
+      // Create a canvas to process the image at full resolution
+      const processCanvas = document.createElement('canvas');
+      processCanvas.width = imageWidth;
+      processCanvas.height = imageHeight;
+      const processCtx = processCanvas.getContext('2d');
+      processCtx.drawImage(currentImage, 0, 0, imageWidth, imageHeight);
+
+      // Get image data
+      const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+
+      // Create OpenCV matrices
+      const src = cv.matFromImageData(imageData);
+      const dst = new cv.Mat();
+      const gray = new cv.Mat();
+      const binary = new cv.Mat();
+      const hierarchy = new cv.Mat();
+      const contours = new cv.MatVector();
+
+      // Convert to grayscale
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+      // Apply Gaussian blur to reduce noise
+      const ksize = new cv.Size(5, 5);
+      cv.GaussianBlur(gray, gray, ksize, 0);
+
+      // Apply binary threshold
+      if (invert) {
+        cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY_INV);
+      } else {
+        cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY);
+      }
+
+      // Find contours
+      cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      // Filter contours by size and draw them
+      cv.cvtColor(binary, dst, cv.COLOR_GRAY2RGBA);
+
+      let cellCount = 0;
+
+      for (let i = 0; i < contours.size(); i++) {
+        const contour = contours.get(i);
+        const area = cv.contourArea(contour);
+
+        if (area >= minSize && area <= maxSize) {
+          // Draw contour
+          const color = new cv.Scalar(0, 255, 0, 255); // Green
+          cv.drawContours(dst, contours, i, color, 2);
+
+          // Draw cell number
+          cellCount++;
+          const moments = cv.moments(contour);
+          const cx = moments.m10 / moments.m00;
+          const cy = moments.m01 / moments.m00;
+          cv.putText(dst, cellCount.toString(), new cv.Point(cx, cy), cv.FONT_HERSHEY_SIMPLEX, 0.5, new cv.Scalar(255, 0, 0, 255), 1);
+        }
+      }
+
+      // Calculate cell density (cells per mm²)
+      // Assuming a standard microscope calibration of 0.5 µm per pixel (adjust as needed)
+      const pixelsPerMm = 2000; // 2000 pixels = 1 mm
+      const imageAreaMm2 = (imageWidth * imageHeight) / (pixelsPerMm * pixelsPerMm);
+      const cellDensity = cellCount / imageAreaMm2;
+
+      // Display results
+      cellCountElement.textContent = cellCount;
+      cellDensityElement.textContent = cellDensity.toFixed(2);
+
+      // Resize output canvas to fit image proportionally
+      const maxWidth = outputCanvas.parentElement.clientWidth;
+      let displayWidth = imageWidth;
+      let displayHeight = imageHeight;
+
+      if (displayWidth > maxWidth) {
+        const ratio = maxWidth / displayWidth;
+        displayWidth = maxWidth;
+        displayHeight = displayHeight * ratio;
+      }
+
+      outputCanvas.width = displayWidth;
+      outputCanvas.height = displayHeight;
+
+      // Display processed image
+      cv.imshow(outputCanvas, dst);
+
+      // Store processed image
+      processedImage = dst.clone();
+
+      // Show results
+      resultsContainer.classList.remove('hidden');
+
+      // Clean up
+      src.delete();
+      dst.delete();
+      gray.delete();
+      binary.delete();
+      hierarchy.delete();
+      contours.delete();
+
+    } catch (error) {
+      console.error('Error processing image:', error);
+      alert('Error processing image. Please try a different image or adjust settings.');
+    } finally {
+      // Hide loading overlay
+      loadingOverlay.classList.add('hidden');
+    }
+  }
+}
+
+// Load default tool
+loadTool('testGenie');
+</script>
+</body>
+</html>

@@ -158,19 +158,44 @@ export const helpContent = {
   `,
   
   unitConverter: `
-    <h4>Scientific Unit Converter</h4>
-    <p>The Scientific Unit Converter is being rebuilt with exciting new features.</p>
+    <h4>How to Use the Unit & Concentration Converter</h4>
+    <p>This tool helps you convert between scientific units and calculate concentrations for laboratory work.</p>
     
-    <h5>Coming Soon:</h5>
+    <h5>Key Features:</h5>
     <ul>
-      <li>Comprehensive unit categories</li>
-      <li>Scientific notation support</li>
-      <li>Custom unit definitions</li>
-      <li>Batch conversion</li>
-      <li>Dimensional analysis</li>
+      <li>Unit converter for common scientific measurements (length, volume, mass, temperature, time, pressure, energy)</li>
+      <li>Specialized centrifuge conversion between rpm and rcf/g-force</li>
+      <li>Concentration calculator for molarity/mass concentration conversions</li>
+      <li>Dilution calculator (C₁V₁ = C₂V₂) for preparing solutions</li>
+      <li>Common molecular weight references</li>
     </ul>
     
-    <p>Check back soon for this upgraded tool!</p>
+    <h5>Unit Converter:</h5>
+    <ol>
+      <li><strong>Select Conversion Type:</strong> Choose the category of units you want to convert (e.g., length, volume, mass).</li>
+      <li><strong>Enter Value:</strong> Input the value you want to convert in the "From" field.</li>
+      <li><strong>Select Units:</strong> Choose the original and target units from the dropdown menus.</li>
+      <li><strong>Convert:</strong> Click the "Convert" button to calculate the conversion.</li>
+      <li><strong>Swap:</strong> Use the "Swap" button to reverse the conversion direction.</li>
+    </ol>
+    
+    <h5>Concentration Calculator:</h5>
+    <ul>
+      <li><strong>Molarity to Mass:</strong> Convert from molar concentration to mass concentration.</li>
+      <li><strong>Mass to Molarity:</strong> Convert from mass concentration to molar concentration.</li>
+      <li><strong>Dilution Calculator:</strong> Calculate volumes needed for diluting stock solutions.</li>
+    </ul>
+    
+    <h5>Tips for Laboratory Calculations:</h5>
+    <ul>
+      <li>For molarity conversions, ensure you have the correct molecular weight of your compound.</li>
+      <li>Use the molecular weight reference buttons for quick access to common chemicals.</li>
+      <li>For centrifuge conversions, the calculation assumes a 10 cm rotor radius.</li>
+      <li>In the dilution calculator, ensure you're using the same concentration units for both stock and desired solutions.</li>
+      <li>Mass concentration units (g/L, mg/mL, and µg/µL) are mathematically equivalent; the tool helps you express the result in your preferred unit.</li>
+    </ul>
+    
+    <p>This tool is especially useful for researchers, lab technicians, and students who need to perform quick unit conversions and concentration calculations for experimental protocols.</p>
   `,
   
   molCalc: `
@@ -203,5 +228,55 @@ export const helpContent = {
     </ul>
     
     <p>Check back soon for this upgraded tool!</p>
-  `
+  `,
+  
+  statGenie: `
+    <h4>How to Use the Statistical Test Genie</h4>
+    <p>This tool helps you select and run appropriate statistical tests on your experimental or observational data.</p>
+    
+    <h5>Key Features:</h5>
+    <ul>
+      <li>Multiple test categories: parametric tests, non-parametric tests, correlation/regression, and descriptive statistics</li>
+      <li>Automated calculations and result interpretation</li>
+      <li>Interactive data visualization with box plots</li>
+      <li>Assumption checking and guidance</li>
+      <li>Built-in example datasets for each test type</li>
+    </ul>
+    
+    <h5>Getting Started:</h5>
+    <ol>
+      <li><strong>Select Test Type:</strong> Choose from parametric tests, non-parametric tests, correlation/regression, or descriptive statistics.</li>
+      <li><strong>Select Specific Test:</strong> Choose the appropriate statistical test based on your research question and data characteristics.</li>
+      <li><strong>Enter Data:</strong> Input your data with one group per line, using comma or space separation between values.</li>
+      <li><strong>Set Test Parameters:</strong> Adjust significance level (α) and any test-specific options.</li>
+      <li><strong>Run Analysis:</strong> Click "Run Analysis" to perform the statistical test.</li>
+    </ol>
+    
+    <h5>Available Tests:</h5>
+    <ul>
+      <li><strong>Parametric Tests:</strong> t-tests (independent, paired, one-sample), one-way ANOVA, two-way ANOVA</li>
+      <li><strong>Non-parametric Tests:</strong> Mann-Whitney U, Wilcoxon signed-rank, Kruskal-Wallis, Friedman, Chi-square</li>
+      <li><strong>Correlation & Regression:</strong> Pearson correlation, Spearman rank correlation, Linear regression</li>
+      <li><strong>Descriptive Statistics:</strong> Summary statistics, normality tests, outlier detection</li>
+    </ul>
+    
+    <h5>Understanding Results:</h5>
+    <ul>
+      <li><strong>Results Table:</strong> Shows test statistics, p-values, and key metrics specific to the chosen test.</li>
+      <li><strong>Interpretation:</strong> Provides a plain-language explanation of what the results mean in the context of your research question.</li>
+      <li><strong>Visualization:</strong> Displays your data graphically to help you understand the distribution and relationships.</li>
+      <li><strong>Assumptions & Notes:</strong> Lists the key assumptions of the test and whether your data appears to meet them.</li>
+    </ul>
+    
+    <h5>Tips for Effective Statistical Analysis:</h5>
+    <ul>
+      <li>Always check if your data meets the assumptions of the statistical test you're using.</li>
+      <li>For small sample sizes, consider using non-parametric tests which make fewer assumptions about your data.</li>
+      <li>The "Load Example" button provides sample data for each test to help you understand how to format your input.</li>
+      <li>Statistical significance (p < α) indicates that your results are unlikely to occur by chance, but always consider practical significance too.</li>
+      <li>Use the box plots to visually assess the distribution of your data and identify potential outliers.</li>
+    </ul>
+    
+    <p>This tool is valuable for researchers, students, and data analysts who need to perform statistical tests without specialized software.</p>
+  `,
 };
