@@ -80,36 +80,64 @@
 
     // Helper function to create tooltips
     function createTooltips() {
-      // Find all elements with data-tooltip attribute
-      document.querySelectorAll('[data-tooltip]').forEach(el => {
-        tippy(el, {
-          content: el.getAttribute('data-tooltip'),
-          placement: 'top',
-          arrow: true,
-          animation: 'scale'
-        });
-      });
+      try {
+        // Check if tippy is loaded
+        if (typeof tippy === 'undefined') {
+          console.warn('Tippy.js is not loaded, tooltips will not be created');
+          return;
+        }
 
-      // Create tooltips for help icons
-      document.querySelectorAll('.help-icon').forEach(el => {
-        tippy(el, {
-          content: el.getAttribute('data-help'),
-          placement: 'top',
-          arrow: true,
-          animation: 'scale',
-          maxWidth: 300
+        // Find all elements with data-tooltip attribute
+        document.querySelectorAll('[data-tooltip]').forEach(el => {
+          try {
+            tippy(el, {
+              content: el.getAttribute('data-tooltip'),
+              placement: 'top',
+              arrow: true,
+              animation: 'scale'
+            });
+          } catch (error) {
+            console.error('Error creating tooltip for element:', el, error);
+          }
         });
-      });
+
+        // Create tooltips for help icons
+        document.querySelectorAll('.help-icon').forEach(el => {
+          try {
+            tippy(el, {
+              content: el.getAttribute('data-help'),
+              placement: 'top',
+              arrow: true,
+              animation: 'scale',
+              maxWidth: 300
+            });
+          } catch (error) {
+            console.error('Error creating tooltip for help icon:', el, error);
+          }
+        });
+      } catch (error) {
+        console.error('Error creating tooltips:', error);
+      }
     }
 
     // Helper function to add help icons
     function addHelpIcon(element, helpText) {
-      const helpIcon = document.createElement('span');
-      helpIcon.className = 'help-icon';
-      helpIcon.textContent = '?';
-      helpIcon.setAttribute('data-help', helpText);
-      element.appendChild(helpIcon);
-      return helpIcon;
+      if (!element) {
+        console.warn('Attempted to add help icon to non-existent element');
+        return null;
+      }
+
+      try {
+        const helpIcon = document.createElement('span');
+        helpIcon.className = 'help-icon';
+        helpIcon.textContent = '?';
+        helpIcon.setAttribute('data-help', helpText);
+        element.appendChild(helpIcon);
+        return helpIcon;
+      } catch (error) {
+        console.error('Error adding help icon:', error);
+        return null;
+      }
     }
 
     // Helper function to show error messages
@@ -948,30 +976,33 @@ function powerWizardUI(root) {
   });
 
   // Handle form submission
-  // Add tooltips to inputs
-  addHelpIcon(document.querySelector('label[for="testType"]'),
-    'Select the appropriate statistical test for your study design. t-test compares means, z-test compares proportions, correlation test examines relationships between variables.');
+  // Add tooltips to inputs - with null checks
+  const powerWizardTooltips = [
+    { selector: 'label[for="testType"]',
+      text: 'Select the appropriate statistical test for your study design. t-test compares means, z-test compares proportions, correlation test examines relationships between variables.' },
+    { selector: 'label[for="calcType"]',
+      text: 'Choose whether to calculate the required sample size for a given power, or calculate the power for a given sample size.' },
+    { selector: 'label[for="effectSize"]',
+      text: 'Effect size measures the magnitude of the difference or relationship you expect to detect. Small: 0.2, Medium: 0.5, Large: 0.8' },
+    { selector: 'label[for="alpha"]',
+      text: 'Significance level (α) is the probability of rejecting the null hypothesis when it is true (Type I error). Typically set to 0.05.' },
+    { selector: 'label[for="powerInput"]',
+      text: 'Power (1-β) is the probability of detecting an effect if it exists. Typically set to 0.8 (80%).' },
+    { selector: 'label[for="sampleSizeInput"]',
+      text: 'The number of subjects in your study. For two-group designs, this is the number per group.' },
+    { selector: 'label[for="tails"]',
+      text: 'One-tailed tests look for effects in only one direction and have more power. Two-tailed tests look for effects in either direction.' },
+    { selector: 'label[for="groups"]',
+      text: 'Select whether you are comparing one group to a known value, or comparing two groups to each other.' }
+  ];
 
-  addHelpIcon(document.querySelector('label[for="calcType"]'),
-    'Choose whether to calculate the required sample size for a given power, or calculate the power for a given sample size.');
-
-  addHelpIcon(document.querySelector('label[for="effectSize"]'),
-    'Effect size measures the magnitude of the difference or relationship you expect to detect. Small: 0.2, Medium: 0.5, Large: 0.8');
-
-  addHelpIcon(document.querySelector('label[for="alpha"]'),
-    'Significance level (α) is the probability of rejecting the null hypothesis when it is true (Type I error). Typically set to 0.05.');
-
-  addHelpIcon(document.querySelector('label[for="powerInput"]'),
-    'Power (1-β) is the probability of detecting an effect if it exists. Typically set to 0.8 (80%).');
-
-  addHelpIcon(document.querySelector('label[for="sampleSizeInput"]'),
-    'The number of subjects in your study. For two-group designs, this is the number per group.');
-
-  addHelpIcon(document.querySelector('label[for="tails"]'),
-    'One-tailed tests look for effects in only one direction and have more power. Two-tailed tests look for effects in either direction.');
-
-  addHelpIcon(document.querySelector('label[for="groups"]'),
-    'Select whether you are comparing one group to a known value, or comparing two groups to each other.');
+  // Add tooltips safely
+  powerWizardTooltips.forEach(tooltip => {
+    const element = document.querySelector(tooltip.selector);
+    if (element) {
+      addHelpIcon(element, tooltip.text);
+    }
+  });
 
   document.getElementById('powerForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1564,9 +1595,12 @@ function normalityCheckerUI(root) {
     Plotly.newPlot('histogramContainer', [histogramTrace, normalTrace], layout);
   }
 
-  // Add tooltips to inputs
-  addHelpIcon(document.querySelector('label[for="dataInput"]'),
-    'Enter your data with one value per line or as comma-separated values. The tool will automatically detect the format.');
+  // Add tooltips to inputs - with null checks
+  const dataInputLabel = document.querySelector('label[for="dataInput"]');
+  if (dataInputLabel) {
+    addHelpIcon(dataInputLabel,
+      'Enter your data with one value per line or as comma-separated values. The tool will automatically detect the format.');
+  }
 
   // Event listeners
   document.getElementById('checkNormality').addEventListener('click', () => {
@@ -1932,27 +1966,37 @@ PIK3CA\t0.6\t1.1\t0.9\t1.4\t0.4`;
     return visited;
   }
 
-  // Add tooltips to inputs
-  addHelpIcon(document.querySelector('label[for="heatmapData"]'),
-    'Enter your matrix data with rows and columns separated by tabs or commas. The first row and/or column can contain labels.');
+  // Add tooltips to inputs - with null checks
+  const heatmapTooltips = [
+    { selector: 'label[for="heatmapData"]',
+      text: 'Enter your matrix data with rows and columns separated by tabs or commas. The first row and/or column can contain labels.' },
+    { selector: 'label[for="dataFormat"]',
+      text: 'Select whether only the first row contains headers, or both the first row and first column contain labels.',
+      isParent: true },
+    { selector: 'label[for="delimiter"]',
+      text: 'Choose the delimiter used in your data. Use tab for data copied from spreadsheets.',
+      isParent: true },
+    { selector: 'label[for="colorScheme"]',
+      text: 'Select a color scheme for your heatmap. Different schemes highlight different patterns in your data.' },
+    { selector: 'label[for="clusterRows"]',
+      text: 'Clustering groups similar rows or columns together to help identify patterns in your data.',
+      isParent: true },
+    { selector: 'label[for="cellSizeSlider"]',
+      text: 'Adjust the size of cells in the heatmap. Larger cells are easier to see but may require scrolling for large datasets.' },
+    { selector: 'label[for="showValues"]',
+      text: 'Show the actual values in each cell of the heatmap.' }
+  ];
 
-  addHelpIcon(document.querySelector('label[for="dataFormat"]').parentNode,
-    'Select whether only the first row contains headers, or both the first row and first column contain labels.');
-
-  addHelpIcon(document.querySelector('label[for="delimiter"]').parentNode,
-    'Choose the delimiter used in your data. Use tab for data copied from spreadsheets.');
-
-  addHelpIcon(document.querySelector('label[for="colorScheme"]'),
-    'Select a color scheme for your heatmap. Different schemes highlight different patterns in your data.');
-
-  addHelpIcon(document.querySelector('label[for="clusterRows"]').parentNode,
-    'Clustering groups similar rows or columns together to help identify patterns in your data.');
-
-  addHelpIcon(document.querySelector('label[for="cellSizeSlider"]'),
-    'Adjust the size of cells in the heatmap. Larger cells are easier to see but may require scrolling for large datasets.');
-
-  addHelpIcon(document.querySelector('label[for="showValues"]'),
-    'Show the actual values in each cell of the heatmap.');
+  // Add tooltips safely
+  heatmapTooltips.forEach(tooltip => {
+    let element = document.querySelector(tooltip.selector);
+    if (tooltip.isParent && element) {
+      element = element.parentNode;
+    }
+    if (element) {
+      addHelpIcon(element, tooltip.text);
+    }
+  });
 
   // Generate the heatmap
   document.getElementById('generateHeatmap').addEventListener('click', () => {
@@ -2449,15 +2493,21 @@ function unitConverterUI(root) {
   // Initialize unit selectors
   populateUnitSelectors();
 
-  // Add tooltips to inputs
-  addHelpIcon(document.querySelector('label[for="conversionType"]'),
-    'Select the type of units you want to convert between.');
+  // Add tooltips to inputs - with null checks
+  const conversionTypeLabel = document.querySelector('label[for="conversionType"]');
+  if (conversionTypeLabel) {
+    addHelpIcon(conversionTypeLabel, 'Select the type of units you want to convert between.');
+  }
 
-  addHelpIcon(document.querySelector('label[for="fromValue"]'),
-    'Enter the value you want to convert.');
+  const fromValueLabel = document.querySelector('label[for="fromValue"]');
+  if (fromValueLabel) {
+    addHelpIcon(fromValueLabel, 'Enter the value you want to convert.');
+  }
 
-  addHelpIcon(document.querySelector('label[for="calcType"]'),
-    'Select the type of concentration calculation you want to perform.');
+  const calcTypeLabel = document.querySelector('label[for="calcType"]');
+  if (calcTypeLabel) {
+    addHelpIcon(calcTypeLabel, 'Select the type of concentration calculation you want to perform.');
+  }
 
   // Handle unit conversion
   document.getElementById('convertUnits').addEventListener('click', () => {
@@ -2589,24 +2639,23 @@ function unitConverterUI(root) {
     });
   });
 
-  // Add more tooltips
-  addHelpIcon(document.querySelector('label[for="molarityInput"]'),
-    'Enter the molar concentration of your solution.');
+  // Add more tooltips - with null checks
+  const tooltips = [
+    { selector: 'label[for="molarityInput"]', text: 'Enter the molar concentration of your solution.' },
+    { selector: 'label[for="mwInput"]', text: 'Enter the molecular weight of your compound in g/mol. Common molecular weights are provided below.' },
+    { selector: 'label[for="stockConc"]', text: 'Enter the concentration of your stock solution.' },
+    { selector: 'label[for="desiredConc"]', text: 'Enter the final concentration you want to achieve. Must be less than stock concentration.' },
+    { selector: 'label[for="finalVolume"]', text: 'Enter the total volume of solution you want to prepare.' },
+    { selector: 'label[for="percentDesired"]', text: 'Enter the percentage concentration you want to achieve (0-100%).' }
+  ];
 
-  addHelpIcon(document.querySelector('label[for="mwInput"]'),
-    'Enter the molecular weight of your compound in g/mol. Common molecular weights are provided below.');
-
-  addHelpIcon(document.querySelector('label[for="stockConc"]'),
-    'Enter the concentration of your stock solution.');
-
-  addHelpIcon(document.querySelector('label[for="desiredConc"]'),
-    'Enter the final concentration you want to achieve. Must be less than stock concentration.');
-
-  addHelpIcon(document.querySelector('label[for="finalVolume"]'),
-    'Enter the total volume of solution you want to prepare.');
-
-  addHelpIcon(document.querySelector('label[for="percentDesired"]'),
-    'Enter the percentage concentration you want to achieve (0-100%).');
+  // Add tooltips safely
+  tooltips.forEach(tooltip => {
+    const element = document.querySelector(tooltip.selector);
+    if (element) {
+      addHelpIcon(element, tooltip.text);
+    }
+  });
 
   // Handle concentration calculations
   document.getElementById('calculateConcentration').addEventListener('click', () => {
@@ -3023,21 +3072,27 @@ function cellCounterUI(root) {
       });
   });
 
-  // Add tooltips to inputs
-  addHelpIcon(document.querySelector('label[for="imageUpload"]'),
-    'Upload a microscopy image containing cells. Works best with high-contrast, well-focused images.');
+  // Add tooltips to inputs - with null checks
+  const cellCounterTooltips = [
+    { selector: 'label[for="imageUpload"]',
+      text: 'Upload a microscopy image containing cells. Works best with high-contrast, well-focused images.' },
+    { selector: 'label[for="thresholdSlider"]',
+      text: 'Adjust the threshold to control cell detection sensitivity. Lower values detect more objects, higher values are more selective.' },
+    { selector: 'label[for="minSizeSlider"]',
+      text: 'Set the minimum size (in pixels) for an object to be counted as a cell. Helps filter out noise and debris.' },
+    { selector: 'label[for="maxSizeSlider"]',
+      text: 'Set the maximum size (in pixels) for an object to be counted as a cell. Helps filter out cell clumps or artifacts.' },
+    { selector: 'label[for="invertImage"]',
+      text: 'Check this box if your cells are dark on a light background. Leave unchecked if cells are light on a dark background.' }
+  ];
 
-  addHelpIcon(document.querySelector('label[for="thresholdSlider"]'),
-    'Adjust the threshold to control cell detection sensitivity. Lower values detect more objects, higher values are more selective.');
-
-  addHelpIcon(document.querySelector('label[for="minSizeSlider"]'),
-    'Set the minimum size (in pixels) for an object to be counted as a cell. Helps filter out noise and debris.');
-
-  addHelpIcon(document.querySelector('label[for="maxSizeSlider"]'),
-    'Set the maximum size (in pixels) for an object to be counted as a cell. Helps filter out cell clumps or artifacts.');
-
-  addHelpIcon(document.querySelector('label[for="invertImage"]'),
-    'Check this box if your cells are dark on a light background. Leave unchecked if cells are light on a dark background.');
+  // Add tooltips safely
+  cellCounterTooltips.forEach(tooltip => {
+    const element = document.querySelector(tooltip.selector);
+    if (element) {
+      addHelpIcon(element, tooltip.text);
+    }
+  });
 
   // Process image button
   processButton.addEventListener('click', () => {
