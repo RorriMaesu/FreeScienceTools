@@ -1138,75 +1138,88 @@ function powerWizardUI(root) {
   }
 
   function generatePowerCurve(testType, alpha, tails, groups, sampleSize, power, currentEffectSize) {
-    // Generate data for power curve
-    const effectSizes = [];
-    const powers = [];
+    try {
+      // Generate data for power curve
+      const effectSizes = [];
+      const powers = [];
 
-    // Generate 20 points for the curve
-    for (let i = 0; i < 20; i++) {
-      const es = 0.1 + i * 0.1; // Effect sizes from 0.1 to 2.0
-      effectSizes.push(es);
+      // Generate 20 points for the curve
+      for (let i = 0; i < 20; i++) {
+        const es = 0.1 + i * 0.1; // Effect sizes from 0.1 to 2.0
+        effectSizes.push(es);
 
-      if (document.getElementById('calcType').value === 'sampleSize') {
-        // If calculating sample size, show power curve for the calculated sample size
-        const p = calculatePower(testType, es, alpha, sampleSize, tails, groups);
-        powers.push(p);
-      } else {
-        // If calculating power, show sample size curve for the desired power
-        const n = calculateSampleSize(testType, es, alpha, 0.8, tails, groups); // Fixed power at 0.8
-        powers.push(n);
+        try {
+          if (document.getElementById('calcType').value === 'sampleSize') {
+            // If calculating sample size, show power curve for the calculated sample size
+            const p = calculatePower(testType, es, alpha, sampleSize, tails, groups);
+            powers.push(isFinite(p) ? p : null);
+          } else {
+            // If calculating power, show sample size curve for the desired power
+            const n = calculateSampleSize(testType, es, alpha, 0.8, tails, groups); // Fixed power at 0.8
+            powers.push(isFinite(n) ? n : null);
+          }
+        } catch (e) {
+          // If calculation fails for a point, use null to create a gap in the curve
+          powers.push(null);
+        }
       }
+
+      // Create the plot
+      const plotData = [{
+        x: effectSizes,
+        y: powers,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: {
+          color: 'rgb(49, 130, 189)',
+          width: 2,
+          connectgaps: false
+        },
+        marker: {
+          color: 'rgb(49, 130, 189)',
+          size: 6
+        }
+      }];
+
+      // Add point for current calculation
+      plotData.push({
+        x: [currentEffectSize],
+        y: [document.getElementById('calcType').value === 'sampleSize' ? power : sampleSize],
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+          color: 'rgb(255, 0, 0)',
+          size: 10,
+          symbol: 'circle'
+        },
+        name: 'Current calculation'
+      });
+
+      const layout = {
+        title: document.getElementById('calcType').value === 'sampleSize' ? 'Power Curve' : 'Sample Size Curve',
+        xaxis: {
+          title: 'Effect Size'
+        },
+        yaxis: {
+          title: document.getElementById('calcType').value === 'sampleSize' ? 'Power' : 'Sample Size',
+          range: document.getElementById('calcType').value === 'sampleSize' ? [0, 1] : [0, Math.max(...powers.filter(p => p !== null)) * 1.1 || 100]
+        },
+        margin: {
+          l: 50,
+          r: 50,
+          b: 50,
+          t: 50,
+          pad: 4
+        }
+      };
+
+      Plotly.newPlot('powerCurveContainer', plotData, layout);
+    } catch (error) {
+      console.error('Error generating power curve:', error);
+      // Create a simple message in the plot container
+      document.getElementById('powerCurveContainer').innerHTML =
+        '<div class="p-4 bg-red-50 text-red-700 border border-red-200 rounded">Error generating power curve. Try different parameters.</div>';
     }
-
-    // Create the plot
-    const plotData = [{
-      x: effectSizes,
-      y: powers,
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: {
-        color: 'rgb(49, 130, 189)',
-        width: 2
-      },
-      marker: {
-        color: 'rgb(49, 130, 189)',
-        size: 6
-      }
-    }];
-
-    // Add point for current calculation
-    plotData.push({
-      x: [currentEffectSize],
-      y: [document.getElementById('calcType').value === 'sampleSize' ? power : sampleSize],
-      type: 'scatter',
-      mode: 'markers',
-      marker: {
-        color: 'rgb(255, 0, 0)',
-        size: 10,
-        symbol: 'circle'
-      },
-      name: 'Current calculation'
-    });
-
-    const layout = {
-      title: document.getElementById('calcType').value === 'sampleSize' ? 'Power Curve' : 'Sample Size Curve',
-      xaxis: {
-        title: 'Effect Size'
-      },
-      yaxis: {
-        title: document.getElementById('calcType').value === 'sampleSize' ? 'Power' : 'Sample Size',
-        range: document.getElementById('calcType').value === 'sampleSize' ? [0, 1] : [0, Math.max(...powers) * 1.1]
-      },
-      margin: {
-        l: 50,
-        r: 50,
-        b: 50,
-        t: 50,
-        pad: 4
-      }
-    };
-
-    Plotly.newPlot('powerCurveContainer', plotData, layout);
   }
 }
 
@@ -2547,14 +2560,24 @@ function unitConverterUI(root) {
   document.getElementById('calcType').addEventListener('change', () => {
     const calcType = document.getElementById('calcType').value;
 
-    // Hide all forms
-    document.getElementById('molarToMassForm').classList.add('hidden');
-    document.getElementById('massToMolarForm').classList.add('hidden');
-    document.getElementById('dilutionForm').classList.add('hidden');
-    document.getElementById('massPercentForm').classList.add('hidden');
+    // Hide all forms first
+    const forms = ['molarToMassForm', 'massToMolarForm', 'dilutionForm', 'massPercentForm'];
+    forms.forEach(form => {
+      const formElement = document.getElementById(form);
+      if (formElement) {
+        formElement.classList.add('hidden');
+      } else {
+        console.error(`Form element not found: ${form}`);
+      }
+    });
 
-    // Show selected form
-    document.getElementById(calcType + 'Form').classList.remove('hidden');
+    // Show the selected form
+    const selectedForm = document.getElementById(calcType + 'Form');
+    if (selectedForm) {
+      selectedForm.classList.remove('hidden');
+    } else {
+      console.error(`Selected form not found: ${calcType}Form`);
+    }
   });
 
   // Handle molecular weight buttons
@@ -2945,17 +2968,58 @@ function cellCounterUI(root) {
   // Load sample image
   loadSampleButton.addEventListener('click', () => {
     // Sample image URL (a public domain cell image)
-    const sampleImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Glioblastoma_cells.jpg/640px-Glioblastoma_cells.jpg';
+    const sampleImageUrl = 'https://raw.githubusercontent.com/RorriMaesu/FreeScienceTools/main/sample-cells.jpg';
 
+    // Create a backup sample image if the remote one fails
+    const createBackupSampleImage = () => {
+      // Create a canvas with some sample cells (circles)
+      const canvas = document.createElement('canvas');
+      canvas.width = 500;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+
+      // Fill background
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw some "cells" (circles)
+      ctx.fillStyle = 'white';
+
+      // Create 20-30 random cells
+      const cellCount = 20 + Math.floor(Math.random() * 10);
+      for (let i = 0; i < cellCount; i++) {
+        const x = 50 + Math.random() * (canvas.width - 100);
+        const y = 50 + Math.random() * (canvas.height - 100);
+        const radius = 10 + Math.random() * 15;
+
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Convert to blob and load
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'sample-cells.jpg', { type: 'image/jpeg' });
+        loadImage(file);
+      }, 'image/jpeg');
+    };
+
+    // Try to fetch the sample image
     fetch(sampleImageUrl)
-      .then(response => response.blob())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.blob();
+      })
       .then(blob => {
         const file = new File([blob], 'sample-cells.jpg', { type: 'image/jpeg' });
         loadImage(file);
       })
       .catch(error => {
         console.error('Error loading sample image:', error);
-        alert('Failed to load sample image. Please try uploading your own image.');
+        // Use backup sample image instead
+        createBackupSampleImage();
       });
   });
 
