@@ -59,7 +59,8 @@
   <!-- Dynamic loader for OpenCV.js (will be loaded only when needed) -->
   <script>
     function loadOpenCV(callback) {
-      if (window.cv) {
+      if (window.cv && window.cv.Mat) {
+        console.log('OpenCV.js already loaded');
         callback();
         return;
       }
@@ -67,14 +68,30 @@
       const script = document.createElement('script');
       script.src = 'https://docs.opencv.org/4.7.0/opencv.js';
       script.async = true;
+
       script.onload = () => {
         console.log('OpenCV.js loaded');
-        callback();
+
+        // Wait for OpenCV to be fully initialized
+        const checkOpenCV = () => {
+          if (window.cv && window.cv.Mat) {
+            console.log('OpenCV.js initialized');
+            callback();
+          } else {
+            console.log('Waiting for OpenCV.js to initialize...');
+            setTimeout(checkOpenCV, 100);
+          }
+        };
+
+        // Start checking for OpenCV initialization
+        checkOpenCV();
       };
+
       script.onerror = () => {
         console.error('Failed to load OpenCV.js');
         alert('Failed to load OpenCV.js. Please check your internet connection and try again.');
       };
+
       document.head.appendChild(script);
     }
 
@@ -3108,23 +3125,31 @@ function cellCounterUI(root) {
     processButton.disabled = true;
     processButton.textContent = 'Processing...';
 
-    // Load OpenCV.js if not already loaded
-    if (!window.cv) {
+    // Load OpenCV.js if not already loaded or not fully initialized
+    if (!window.cv || !window.cv.Mat) {
       loadingOverlay.querySelector('p').textContent = 'Loading OpenCV.js (this may take a moment)...';
+
       loadOpenCV(() => {
         try {
+          // Double-check that OpenCV is properly loaded
+          if (!window.cv || !window.cv.Mat) {
+            throw new Error('OpenCV.js failed to initialize properly. Please refresh the page and try again.');
+          }
+
           processImageWithOpenCV();
         } catch (error) {
+          console.error('Error in OpenCV processing:', error);
           loadingOverlay.classList.add('hidden');
           processButton.disabled = false;
           processButton.textContent = 'Count Cells';
-          alert(error.message || 'Error processing image');
+          alert(error.message || 'Error processing image. Please refresh the page and try again.');
         }
       });
     } else {
       try {
         processImageWithOpenCV();
       } catch (error) {
+        console.error('Error in image processing:', error);
         loadingOverlay.classList.add('hidden');
         processButton.disabled = false;
         processButton.textContent = 'Count Cells';
@@ -3200,6 +3225,11 @@ function cellCounterUI(root) {
   // Process image with OpenCV
   function processImageWithOpenCV() {
     try {
+      // Verify OpenCV is properly loaded
+      if (!window.cv || !window.cv.Mat) {
+        throw new Error('OpenCV.js is not properly initialized. Please refresh the page and try again.');
+      }
+
       // Get parameters
       const threshold = parseInt(thresholdSlider.value);
       const minSize = parseInt(minSizeSlider.value);
@@ -3229,14 +3259,17 @@ function cellCounterUI(root) {
       const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
 
       // Create OpenCV matrices
-      const src = cv.matFromImageData(imageData);
-      const dst = new cv.Mat();
-      const gray = new cv.Mat();
-      const binary = new cv.Mat();
-      const hierarchy = new cv.Mat();
-      const contours = new cv.MatVector();
+      let src, dst, gray, binary, hierarchy, contours;
 
       try {
+        // Initialize OpenCV matrices
+        src = cv.matFromImageData(imageData);
+        dst = new cv.Mat();
+        gray = new cv.Mat();
+        binary = new cv.Mat();
+        hierarchy = new cv.Mat();
+        contours = new cv.MatVector();
+
         // Convert to grayscale
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
@@ -3347,12 +3380,12 @@ function cellCounterUI(root) {
         resultsContainer.scrollIntoView({ behavior: 'smooth' });
       } finally {
         // Clean up OpenCV resources
-        src.delete();
-        dst.delete();
-        gray.delete();
-        binary.delete();
-        hierarchy.delete();
-        contours.delete();
+        if (src) src.delete();
+        if (dst) dst.delete();
+        if (gray) gray.delete();
+        if (binary) binary.delete();
+        if (hierarchy) hierarchy.delete();
+        if (contours) contours.delete();
       }
     } catch (error) {
       console.error('Error processing image:', error);
