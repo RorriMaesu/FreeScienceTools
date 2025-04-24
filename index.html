@@ -7,6 +7,7 @@
   <!-- Production-ready Tailwind CSS -->
   <link href="https://unpkg.com/@tailwindcss/typography@0.5.9/dist/typography.min.css" rel="stylesheet">
   <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tailwindcss/forms@0.5.3/dist/forms.min.css">
   <!-- Plotly (quick-plot lab) -->
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <!-- PapaParse (CSV parsing) -->
@@ -55,6 +56,13 @@
       font-size: 0.875rem;
       margin-top: 0.25rem;
     }
+    /* Toast notification style */
+    .toast{position:fixed;bottom:1rem;left:1rem;background:#334155;color:#fff;padding:.75rem 1rem;border-radius:.5rem;opacity:0;transition:opacity .4s}
+    .toast.show{opacity:1}
+    /* Floating action button style */
+    .fab{position:fixed;bottom:1rem;right:1rem;background:#fbbf24;width:3.5rem;height:3.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+    .fab:hover .fab-label{transform:scaleX(1);opacity:1}
+    .fab-label{opacity:0;transform:scaleX(0);transform-origin:right;padding:0 .5rem;background:#fbbf24;border-radius:.25rem;margin-right:.5rem;white-space:nowrap;transition:all .2s}
   </style>
   <!-- Dynamic loader for OpenCV.js (will be loaded only when needed) -->
   <script>
@@ -245,6 +253,43 @@
   <footer class="bg-blue-800 text-white text-center p-2 text-xs mt-4">© 2025 Sci Mini-Suite • All client-side, no data leaves your browser.</footer>
 
 <script>
+// Usage counter
+let useCount = parseInt(localStorage.getItem('ubs_use') || '0');
+function bumpCounter() {
+  useCount++; localStorage.setItem('ubs_use', useCount);
+  if ([10, 50, 100].includes(useCount)) toast(`🏅 You've used Sci Mini-Suite ${useCount} times! Consider buying a coffee?`);
+}
+
+// Helper to trigger toast
+function toast(msg) {
+  let t = document.querySelector('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// Floating action button
+(function() {
+  const fab = document.createElement('div');
+  fab.innerHTML = `<span class="fab-label text-sm font-medium">Support</span><span>☕</span>`;
+  fab.className = 'fab cursor-pointer';
+  fab.onclick = () => window.open('https://buymeacoffee.com/rorrimaesu', '_blank');
+  document.body.appendChild(fab);
+})();
+
+// First-visit onboarding modal
+if (!localStorage.getItem('ubs_seen')) {
+  const m = document.createElement('div');
+  m.className = 'fixed inset-0 bg-black/50 flex items-center justify-center';
+  m.innerHTML = `<div class="bg-white p-6 rounded shadow max-w-sm text-center">
+      <h2 class="text-xl font-bold mb-2">Welcome to Sci Mini-Suite!</h2>
+      <p class="mb-4">Free scientific tools, no login, no tracking. If they help, please support with a coffee.</p>
+      <button id="ubsClose" class="bg-blue-600 text-white px-4 py-2 rounded mr-2">Explore</button>
+      <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="bg-yellow-400 px-4 py-2 rounded">☕ Support</a>
+    </div>`;
+  document.body.appendChild(m);
+  document.getElementById('ubsClose').onclick = () => m.remove();
+  localStorage.setItem('ubs_seen', '1');
+}
+
 // ========== TOOL REGISTRY ========== //
 const tools = {
   testGenie: {
@@ -705,6 +750,8 @@ function csvConverterUI(root){
     try {
       const parsed = Papa.parse(input.value.trim(), {header: true});
       output.value = JSON.stringify(parsed.data, null, 2);
+      toast('JSON conversion ready! Enjoy ☺ | Buy me a coffee?');
+      bumpCounter();
     } catch(err) {
       alert('Conversion error');
     }
@@ -714,6 +761,8 @@ function csvConverterUI(root){
     try {
       const obj = JSON.parse(input.value);
       output.value = Papa.unparse(obj);
+      toast('CSV conversion ready! Enjoy ☺ | Buy me a coffee?');
+      bumpCounter();
     } catch(err) {
       alert('Conversion error: ensure valid JSON');
     }
@@ -757,6 +806,8 @@ function quickPlotUI(root){
     };
 
     Plotly.newPlot('plotArea', [trace], {margin: {t: 20}});
+    toast('Plot generated! Enjoy ☺ | Buy me a coffee?');
+    bumpCounter();
   };
 }
 
@@ -794,6 +845,8 @@ function labCalcUI(root){
     const diluent = V2 - V1;
 
     document.getElementById('calcResult').innerHTML = `<p>Pipette <span class="font-semibold">${V1.toFixed(3)} mL</span> of stock solution and add <span class="font-semibold">${diluent.toFixed(3)} mL</span> diluent.</p>`;
+    toast('Dilution calculated! Enjoy ☺ | Buy me a coffee?');
+    bumpCounter();
   };
 }
 
@@ -846,6 +899,8 @@ function fastViewerUI(root){
         chunks.push(html.substring(i, i + 60));
       }
       document.getElementById('seqOutput').innerHTML = chunks.join('\n');
+      toast('Sequence processed! Enjoy ☺ | Buy me a coffee?');
+      bumpCounter();
     } else {
       document.getElementById('seqOutput').innerHTML = '';
     }
@@ -1102,6 +1157,10 @@ function powerWizardUI(root) {
 
       // Show success message
       showSuccess(document.getElementById('powerForm').querySelector('button[type="submit"]'), 'Calculation successful!');
+
+      // Show toast notification
+      toast('Power calculation ready! Enjoy ☺ | Buy me a coffee?');
+      bumpCounter();
     } catch (error) {
       // Show error message
       alert(error.message || 'An error occurred during calculation');
@@ -3634,6 +3693,10 @@ function cellCounterUI(root) {
 
         // Show success message
         showSuccess(processButton, `Successfully counted ${cellCount} cells!`);
+
+        // Show toast notification
+        toast(`Counted ${cellCount} cells! Enjoy ☺ | Buy me a coffee?`);
+        bumpCounter();
 
         // Scroll to results
         resultsContainer.scrollIntoView({ behavior: 'smooth' });
