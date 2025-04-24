@@ -13,6 +13,49 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
   <!-- jStat for statistical calculations -->
   <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+  <!-- Tippy.js for tooltips -->
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
+  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css">
+  <style>
+    /* Custom tooltip styles */
+    .tippy-box {
+      background-color: #1e40af;
+      color: white;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    .tippy-arrow {
+      color: #1e40af;
+    }
+    /* Help icon style */
+    .help-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: #3b82f6;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: help;
+      margin-left: 4px;
+    }
+    /* Error message style */
+    .error-message {
+      color: #dc2626;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+    /* Success message style */
+    .success-message {
+      color: #16a34a;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+  </style>
   <!-- Dynamic loader for OpenCV.js (will be loaded only when needed) -->
   <script>
     function loadOpenCV(callback) {
@@ -33,6 +76,112 @@
         alert('Failed to load OpenCV.js. Please check your internet connection and try again.');
       };
       document.head.appendChild(script);
+    }
+
+    // Helper function to create tooltips
+    function createTooltips() {
+      // Find all elements with data-tooltip attribute
+      document.querySelectorAll('[data-tooltip]').forEach(el => {
+        tippy(el, {
+          content: el.getAttribute('data-tooltip'),
+          placement: 'top',
+          arrow: true,
+          animation: 'scale'
+        });
+      });
+
+      // Create tooltips for help icons
+      document.querySelectorAll('.help-icon').forEach(el => {
+        tippy(el, {
+          content: el.getAttribute('data-help'),
+          placement: 'top',
+          arrow: true,
+          animation: 'scale',
+          maxWidth: 300
+        });
+      });
+    }
+
+    // Helper function to add help icons
+    function addHelpIcon(element, helpText) {
+      const helpIcon = document.createElement('span');
+      helpIcon.className = 'help-icon';
+      helpIcon.textContent = '?';
+      helpIcon.setAttribute('data-help', helpText);
+      element.appendChild(helpIcon);
+      return helpIcon;
+    }
+
+    // Helper function to show error messages
+    function showError(element, message) {
+      // Clear any existing error
+      clearError(element);
+
+      // Create error message
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.textContent = message;
+
+      // Add error class to input
+      element.classList.add('border-red-500');
+
+      // Insert error message after element
+      element.parentNode.insertBefore(errorDiv, element.nextSibling);
+
+      return errorDiv;
+    }
+
+    // Helper function to clear error messages
+    function clearError(element) {
+      // Remove error class
+      element.classList.remove('border-red-500');
+
+      // Remove any existing error message
+      const nextSibling = element.nextSibling;
+      if (nextSibling && nextSibling.classList && nextSibling.classList.contains('error-message')) {
+        nextSibling.remove();
+      }
+    }
+
+    // Helper function to show success messages
+    function showSuccess(element, message) {
+      // Create success message
+      const successDiv = document.createElement('div');
+      successDiv.className = 'success-message';
+      successDiv.textContent = message;
+
+      // Insert success message after element
+      element.parentNode.insertBefore(successDiv, element.nextSibling);
+
+      // Remove after 3 seconds
+      setTimeout(() => {
+        successDiv.remove();
+      }, 3000);
+
+      return successDiv;
+    }
+
+    // Helper function to validate numeric input
+    function validateNumericInput(input, min = null, max = null) {
+      const value = parseFloat(input.value);
+
+      if (isNaN(value)) {
+        showError(input, 'Please enter a valid number');
+        return false;
+      }
+
+      if (min !== null && value < min) {
+        showError(input, `Value must be at least ${min}`);
+        return false;
+      }
+
+      if (max !== null && value > max) {
+        showError(input, `Value must be at most ${max}`);
+        return false;
+      }
+
+      clearError(input);
+      return true;
     }
   </script>
 </head>
@@ -106,9 +255,340 @@ Object.entries(tools).forEach(([key, {name}]) => {
 });
 
 function loadTool(key){
+  // Update active state in navigation
+  document.querySelectorAll('#navBar button').forEach(btn => {
+    btn.classList.remove('bg-blue-200', 'font-semibold');
+    btn.classList.add('bg-white');
+  });
+
+  // Find the button for this tool and highlight it
+  const activeButton = Array.from(document.querySelectorAll('#navBar button')).find(
+    btn => btn.textContent === tools[key].name
+  );
+  if (activeButton) {
+    activeButton.classList.remove('bg-white');
+    activeButton.classList.add('bg-blue-200', 'font-semibold');
+  }
+
+  // Clear container and render tool
   const container = document.getElementById('toolContainer');
   container.innerHTML = '';
   tools[key].render(container);
+
+  // Initialize tooltips after rendering
+  setTimeout(() => {
+    createTooltips();
+  }, 100);
+
+  // Add help button if not welcome screen
+  if (key !== 'welcome') {
+    const helpButton = document.createElement('button');
+    helpButton.className = 'absolute top-4 right-4 text-blue-600 flex items-center';
+    helpButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg> Help';
+
+    helpButton.addEventListener('click', () => {
+      showToolHelp(key);
+    });
+
+    // Find a good place to insert the help button
+    const heading = container.querySelector('h2');
+    if (heading) {
+      heading.style.position = 'relative';
+      heading.appendChild(helpButton);
+    } else {
+      container.insertBefore(helpButton, container.firstChild);
+    }
+  }
+}
+
+// Function to show help for a specific tool
+function showToolHelp(toolKey) {
+  const helpContent = getToolHelpContent(toolKey);
+
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold">${tools[toolKey].name} - Help</h3>
+        <button class="text-gray-500 hover:text-gray-700" id="closeHelpModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="prose">
+        ${helpContent}
+      </div>
+      <div class="mt-6 text-right">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded" id="closeHelpButton">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Add event listeners to close buttons
+  document.getElementById('closeHelpModal').addEventListener('click', () => {
+    modal.remove();
+  });
+
+  document.getElementById('closeHelpButton').addEventListener('click', () => {
+    modal.remove();
+  });
+
+  // Close on click outside
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
+
+// Function to get help content for each tool
+function getToolHelpContent(toolKey) {
+  const helpContent = {
+    testGenie: `
+      <h4>How to Use the Stat Test Genie</h4>
+      <p>This tool helps you select the appropriate statistical test for your data.</p>
+      <ol>
+        <li><strong>Type of data:</strong> Select whether your data is numeric (continuous measurements) or categorical (counts, categories).</li>
+        <li><strong>Number of groups:</strong> Indicate if you're comparing 2 groups or more than 2 groups.</li>
+        <li><strong>Independence:</strong> Specify if your groups are independent (different subjects) or paired/repeated (same subjects measured multiple times).</li>
+        <li>Click <strong>Suggest Test</strong> to get a recommendation.</li>
+      </ol>
+      <p>The tool will suggest the most appropriate statistical test based on your selections, along with important assumptions to verify.</p>
+    `,
+    powerWizard: `
+      <h4>How to Use the Power & Sample-Size Wizard</h4>
+      <p>This tool helps you calculate either:</p>
+      <ul>
+        <li>The sample size needed to achieve a desired statistical power</li>
+        <li>The statistical power of a study with a given sample size</li>
+      </ul>
+
+      <h5>Key Parameters:</h5>
+      <ul>
+        <li><strong>Test type:</strong> Select t-test (for means), z-test (for proportions), or correlation test.</li>
+        <li><strong>What to calculate:</strong> Choose whether to calculate sample size or power.</li>
+        <li><strong>Effect size:</strong> The magnitude of the effect you expect to detect.
+          <ul>
+            <li>Small: 0.2 (subtle effect)</li>
+            <li>Medium: 0.5 (moderate effect)</li>
+            <li>Large: 0.8 (substantial effect)</li>
+          </ul>
+        </li>
+        <li><strong>Significance level (α):</strong> The probability of Type I error (false positive). Typically 0.05.</li>
+        <li><strong>Power (1-β):</strong> The probability of detecting an effect if it exists. Typically 0.8 (80%).</li>
+        <li><strong>Test direction:</strong> One-tailed tests have more power but only detect effects in one direction.</li>
+        <li><strong>Groups:</strong> Specify if you're comparing one group to a known value or two groups to each other.</li>
+      </ul>
+
+      <p>After calculation, you'll see a power curve showing the relationship between effect size and power/sample size.</p>
+    `,
+    normalityChecker: `
+      <h4>How to Use the Normality & Outlier Checker</h4>
+      <p>This tool helps you check if your data follows a normal distribution and identifies potential outliers.</p>
+
+      <h5>Input Data:</h5>
+      <p>Enter your data with one value per line or as comma-separated values. You can also click "Generate Example Data" to see how the tool works.</p>
+
+      <h5>Results Explained:</h5>
+      <ul>
+        <li><strong>Descriptive Statistics:</strong> Basic summary statistics of your data.</li>
+        <li><strong>Shapiro-Wilk Test:</strong> Tests if your data follows a normal distribution.
+          <ul>
+            <li>p-value > 0.05: Data appears to be normally distributed</li>
+            <li>p-value ≤ 0.05: Data does not appear to be normally distributed</li>
+          </ul>
+        </li>
+        <li><strong>Outlier Detection:</strong> Uses Grubbs' test to identify potential outliers.
+          <ul>
+            <li>Z-score: How many standard deviations a value is from the mean</li>
+            <li>Significant: Whether the value is statistically likely to be an outlier</li>
+          </ul>
+        </li>
+        <li><strong>Visualization:</strong> Histogram with normal curve overlay to visually assess normality.</li>
+      </ul>
+
+      <p>Based on the results, the tool provides recommendations for statistical approaches.</p>
+    `,
+    csvConverter: `
+      <h4>How to Use the CSV ↔ JSON Converter</h4>
+      <p>This tool allows you to convert data between CSV and JSON formats.</p>
+
+      <h5>Converting CSV to JSON:</h5>
+      <ol>
+        <li>Paste your CSV data into the input box. The first row should contain column headers.</li>
+        <li>Click the "To JSON" button.</li>
+        <li>The converted JSON will appear in the output box.</li>
+      </ol>
+
+      <h5>Converting JSON to CSV:</h5>
+      <ol>
+        <li>Paste your JSON data into the input box. It should be an array of objects.</li>
+        <li>Click the "To CSV" button.</li>
+        <li>The converted CSV will appear in the output box.</li>
+      </ol>
+
+      <p>The output can be copied and used in other applications or saved to a file.</p>
+    `,
+    quickPlot: `
+      <h4>How to Use the Quick-Plot Lab</h4>
+      <p>This tool allows you to create simple plots from your data without needing specialized software.</p>
+
+      <h5>Creating a Plot:</h5>
+      <ol>
+        <li>Enter your data in the text area as two-column CSV format:
+          <pre>x,y
+1,2
+2,4
+3,6
+...</pre>
+        </li>
+        <li>Select the plot type: Scatter, Bar, or Line.</li>
+        <li>Click the "Plot" button to generate your visualization.</li>
+      </ol>
+
+      <h5>Plot Types:</h5>
+      <ul>
+        <li><strong>Scatter:</strong> Shows individual data points. Good for showing relationships between variables.</li>
+        <li><strong>Bar:</strong> Shows categorical data as bars. Good for comparing values across categories.</li>
+        <li><strong>Line:</strong> Shows connected data points. Good for showing trends over time or sequence.</li>
+      </ul>
+
+      <p>The generated plot is interactive - you can zoom, pan, and download it as a PNG image.</p>
+    `,
+    heatMapper: `
+      <h4>How to Use the Heat-Mapper</h4>
+      <p>This tool creates heatmaps from matrix data, useful for visualizing gene expression, correlation matrices, or any tabular data.</p>
+
+      <h5>Creating a Heatmap:</h5>
+      <ol>
+        <li>Enter your data in the text area. You can use tab or comma as separators.</li>
+        <li>Select the data format:
+          <ul>
+            <li><strong>First row is header:</strong> Only the first row contains column labels.</li>
+            <li><strong>First row & column are headers:</strong> Both first row and first column contain labels.</li>
+          </ul>
+        </li>
+        <li>Choose a color scheme for the heatmap.</li>
+        <li>Optionally enable clustering to group similar rows/columns.</li>
+        <li>Adjust cell size as needed.</li>
+        <li>Click "Generate Heatmap" to create the visualization.</li>
+      </ol>
+
+      <h5>Tips:</h5>
+      <ul>
+        <li>Use the "Example Data" button to see a sample format.</li>
+        <li>Hover over cells to see exact values.</li>
+        <li>Use the "Download PNG" button to save your heatmap.</li>
+        <li>Clustering helps identify patterns in your data.</li>
+      </ul>
+    `,
+    labCalc: `
+      <h4>How to Use the Lab Math Calculator</h4>
+      <p>This tool helps you calculate dilutions for laboratory work.</p>
+
+      <h5>Calculating Dilutions:</h5>
+      <ol>
+        <li>Enter the stock concentration (in molar units).</li>
+        <li>Enter the desired concentration (must be less than stock).</li>
+        <li>Enter the final volume you need.</li>
+        <li>Click "Calculate" to get the results.</li>
+      </ol>
+
+      <p>The calculator will tell you exactly how much stock solution to use and how much diluent to add to achieve your desired concentration.</p>
+
+      <h5>Formula Used:</h5>
+      <p>This calculator uses the formula: C₁V₁ = C₂V₂</p>
+      <ul>
+        <li>C₁ = Stock concentration</li>
+        <li>V₁ = Volume of stock to use (what we're calculating)</li>
+        <li>C₂ = Desired concentration</li>
+        <li>V₂ = Final volume</li>
+      </ul>
+    `,
+    unitConverter: `
+      <h4>How to Use the Unit & Concentration Converter</h4>
+      <p>This tool helps you convert between different units and calculate concentrations for lab work.</p>
+
+      <h5>Unit Converter:</h5>
+      <ol>
+        <li>Select the conversion type (length, volume, mass, etc.).</li>
+        <li>Enter the value you want to convert.</li>
+        <li>Select the units to convert from and to.</li>
+        <li>Click "Convert" to see the result.</li>
+      </ol>
+
+      <h5>Concentration Calculator:</h5>
+      <p>This section offers four different calculation types:</p>
+      <ul>
+        <li><strong>Molarity to Mass Concentration:</strong> Convert from molar concentration to mass concentration (e.g., M to g/L).</li>
+        <li><strong>Mass Concentration to Molarity:</strong> Convert from mass concentration to molar concentration (e.g., g/L to M).</li>
+        <li><strong>Dilution Calculator:</strong> Calculate volumes for diluting a stock solution.</li>
+        <li><strong>Mass Percent Solution:</strong> Calculate amounts for preparing a solution with a specific percentage concentration.</li>
+      </ul>
+
+      <p>Common molecular weights are provided at the bottom for quick reference.</p>
+    `,
+    fastViewer: `
+      <h4>How to Use the FAST-Viewer</h4>
+      <p>This tool allows you to view and analyze DNA/RNA sequences.</p>
+
+      <h5>Viewing Sequences:</h5>
+      <ol>
+        <li>Paste your sequence in FASTA format (with or without the header line).</li>
+        <li>Optionally enter a motif or regular expression to search for.</li>
+        <li>Click "Highlight" to process the sequence.</li>
+      </ol>
+
+      <h5>Features:</h5>
+      <ul>
+        <li>Sequences are displayed in a readable format with line breaks.</li>
+        <li>Motif search highlights matching patterns in yellow.</li>
+        <li>Supports regular expressions for advanced pattern matching.</li>
+      </ul>
+
+      <h5>Example Motifs:</h5>
+      <ul>
+        <li><code>GAATTC</code> - Find exact sequence (EcoRI site)</li>
+        <li><code>ATG[ATGC]{3}TAA</code> - Find start codon, any 3 bases, stop codon</li>
+        <li><code>GC[AT]{4}GC</code> - Find GC followed by 4 A or T, then GC</li>
+      </ul>
+    `,
+    cellCounter: `
+      <h4>How to Use the Quick Cell-Counter (Beta)</h4>
+      <p>This tool helps you count cells in microscopy images using computer vision.</p>
+
+      <h5>Counting Cells:</h5>
+      <ol>
+        <li>Upload an image or drag and drop it onto the page.</li>
+        <li>Adjust the detection settings:
+          <ul>
+            <li><strong>Threshold:</strong> Controls the sensitivity of cell detection. Lower values detect more objects.</li>
+            <li><strong>Min/Max cell size:</strong> Filters objects by size to exclude noise or clumps.</li>
+            <li><strong>Invert image:</strong> Check this for dark cells on a light background.</li>
+          </ul>
+        </li>
+        <li>Click "Count Cells" to process the image.</li>
+      </ol>
+
+      <h5>Tips for Best Results:</h5>
+      <ul>
+        <li>Use high-contrast, well-focused images.</li>
+        <li>Adjust the threshold to improve detection accuracy.</li>
+        <li>Use the min/max size settings to filter out noise and cell clumps.</li>
+        <li>The processed image shows detected cells with green outlines and numbers.</li>
+        <li>You can download the result image for your records.</li>
+      </ul>
+
+      <p><strong>Note:</strong> This is a beta feature and works best with high-contrast images. Results should be verified manually for critical applications.</p>
+    `
+  };
+
+  return helpContent[toolKey] || `<p>No help content available for this tool.</p>`;
 }
 
 // ========== TOOL 1: Stat Test Genie ========== //
@@ -468,52 +948,116 @@ function powerWizardUI(root) {
   });
 
   // Handle form submission
+  // Add tooltips to inputs
+  addHelpIcon(document.querySelector('label[for="testType"]'),
+    'Select the appropriate statistical test for your study design. t-test compares means, z-test compares proportions, correlation test examines relationships between variables.');
+
+  addHelpIcon(document.querySelector('label[for="calcType"]'),
+    'Choose whether to calculate the required sample size for a given power, or calculate the power for a given sample size.');
+
+  addHelpIcon(document.querySelector('label[for="effectSize"]'),
+    'Effect size measures the magnitude of the difference or relationship you expect to detect. Small: 0.2, Medium: 0.5, Large: 0.8');
+
+  addHelpIcon(document.querySelector('label[for="alpha"]'),
+    'Significance level (α) is the probability of rejecting the null hypothesis when it is true (Type I error). Typically set to 0.05.');
+
+  addHelpIcon(document.querySelector('label[for="powerInput"]'),
+    'Power (1-β) is the probability of detecting an effect if it exists. Typically set to 0.8 (80%).');
+
+  addHelpIcon(document.querySelector('label[for="sampleSizeInput"]'),
+    'The number of subjects in your study. For two-group designs, this is the number per group.');
+
+  addHelpIcon(document.querySelector('label[for="tails"]'),
+    'One-tailed tests look for effects in only one direction and have more power. Two-tailed tests look for effects in either direction.');
+
+  addHelpIcon(document.querySelector('label[for="groups"]'),
+    'Select whether you are comparing one group to a known value, or comparing two groups to each other.');
+
   document.getElementById('powerForm').addEventListener('submit', (e) => {
     e.preventDefault();
 
+    // Validate inputs
+    const effectSizeInput = document.getElementById('effectSize');
+    const effectSize = parseFloat(effectSizeInput.value);
+    if (!validateNumericInput(effectSizeInput, 0.05, 3)) {
+      return;
+    }
+
     const testType = document.getElementById('testType').value;
     const calcType = document.getElementById('calcType').value;
-    const effectSize = parseFloat(document.getElementById('effectSize').value);
     const alpha = parseFloat(document.getElementById('alpha').value);
     const tails = parseInt(document.getElementById('tails').value);
     const groups = parseInt(document.getElementById('groups').value);
 
     let result, power, sampleSize;
 
-    if (calcType === 'sampleSize') {
-      power = parseFloat(document.getElementById('powerInput').value);
-      sampleSize = calculateSampleSize(testType, effectSize, alpha, power, tails, groups);
-      result = {
-        title: 'Required Sample Size',
-        text: `You need ${Math.ceil(sampleSize)} subjects ${groups === 2 ? 'per group' : 'total'} to detect an effect size of ${effectSize.toFixed(2)} with ${(power * 100).toFixed(0)}% power at α = ${alpha}.`
-      };
-    } else {
-      sampleSize = parseInt(document.getElementById('sampleSizeInput').value);
-      power = calculatePower(testType, effectSize, alpha, sampleSize, tails, groups);
-      result = {
-        title: 'Statistical Power',
-        text: `With ${sampleSize} subjects ${groups === 2 ? 'per group' : 'total'}, you have ${(power * 100).toFixed(1)}% power to detect an effect size of ${effectSize.toFixed(2)} at α = ${alpha}.`
-      };
+    try {
+      if (calcType === 'sampleSize') {
+        const powerInput = document.getElementById('powerInput');
+        power = parseFloat(powerInput.value);
+        if (!validateNumericInput(powerInput, 0.05, 0.9999)) {
+          return;
+        }
+
+        sampleSize = calculateSampleSize(testType, effectSize, alpha, power, tails, groups);
+
+        if (isNaN(sampleSize) || !isFinite(sampleSize) || sampleSize <= 0) {
+          throw new Error('Could not calculate a valid sample size. Try a larger effect size or lower power.');
+        }
+
+        result = {
+          title: 'Required Sample Size',
+          text: `You need ${Math.ceil(sampleSize)} subjects ${groups === 2 ? 'per group' : 'total'} to detect an effect size of ${effectSize.toFixed(2)} with ${(power * 100).toFixed(0)}% power at α = ${alpha}.`
+        };
+      } else {
+        const sampleSizeInput = document.getElementById('sampleSizeInput');
+        sampleSize = parseInt(sampleSizeInput.value);
+        if (!validateNumericInput(sampleSizeInput, 2, 10000)) {
+          return;
+        }
+
+        power = calculatePower(testType, effectSize, alpha, sampleSize, tails, groups);
+
+        if (isNaN(power) || !isFinite(power) || power <= 0) {
+          throw new Error('Could not calculate valid power. Try a larger sample size or effect size.');
+        }
+
+        result = {
+          title: 'Statistical Power',
+          text: `With ${sampleSize} subjects ${groups === 2 ? 'per group' : 'total'}, you have ${(power * 100).toFixed(1)}% power to detect an effect size of ${effectSize.toFixed(2)} at α = ${alpha}.`
+        };
+
+        // Add warning for low power
+        if (power < 0.8) {
+          result.text += `\n\nNote: This power is below the recommended 80%. Consider increasing your sample size to at least ${calculateSampleSize(testType, effectSize, alpha, 0.8, tails, groups)} for adequate power.`;
+        }
+      }
+
+      // Display result
+      const resultContainer = document.getElementById('powerResult');
+      document.getElementById('resultTitle').textContent = result.title;
+      document.getElementById('resultText').textContent = result.text;
+      resultContainer.classList.remove('hidden');
+
+      // Generate power curve
+      generatePowerCurve(testType, alpha, tails, groups, sampleSize, power, effectSize);
+
+      // Add donation button to result
+      const donationBtn = document.createElement('a');
+      donationBtn.href = 'https://buymeacoffee.com/rorrimaesu';
+      donationBtn.target = '_blank';
+      donationBtn.className = 'inline-block mt-4 bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500';
+      donationBtn.textContent = '☕ Found this helpful? Buy me a coffee!';
+      document.getElementById('resultText').appendChild(document.createElement('br'));
+      document.getElementById('resultText').appendChild(document.createElement('br'));
+      document.getElementById('resultText').appendChild(donationBtn);
+
+      // Show success message
+      showSuccess(document.getElementById('powerForm').querySelector('button[type="submit"]'), 'Calculation successful!');
+    } catch (error) {
+      // Show error message
+      alert(error.message || 'An error occurred during calculation');
     }
-
-    // Display result
-    const resultContainer = document.getElementById('powerResult');
-    document.getElementById('resultTitle').textContent = result.title;
-    document.getElementById('resultText').textContent = result.text;
-    resultContainer.classList.remove('hidden');
-
-    // Generate power curve
-    generatePowerCurve(testType, alpha, tails, groups, sampleSize, power, effectSize);
-
-    // Add donation button to result
-    const donationBtn = document.createElement('a');
-    donationBtn.href = 'https://buymeacoffee.com/rorrimaesu';
-    donationBtn.target = '_blank';
-    donationBtn.className = 'inline-block mt-4 bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500';
-    donationBtn.textContent = '☕ Found this helpful? Buy me a coffee!';
-    document.getElementById('resultText').appendChild(document.createElement('br'));
-    document.getElementById('resultText').appendChild(document.createElement('br'));
-    document.getElementById('resultText').appendChild(donationBtn);
   });
 
   // Helper functions for calculations
@@ -1007,113 +1551,138 @@ function normalityCheckerUI(root) {
     Plotly.newPlot('histogramContainer', [histogramTrace, normalTrace], layout);
   }
 
+  // Add tooltips to inputs
+  addHelpIcon(document.querySelector('label[for="dataInput"]'),
+    'Enter your data with one value per line or as comma-separated values. The tool will automatically detect the format.');
+
   // Event listeners
   document.getElementById('checkNormality').addEventListener('click', () => {
-    const input = document.getElementById('dataInput').value.trim();
+    const dataInput = document.getElementById('dataInput');
+    const input = dataInput.value.trim();
+
     if (!input) {
-      alert('Please enter data first');
+      showError(dataInput, 'Please enter data first');
       return;
     }
 
-    const data = parseData(input);
-    if (data.length < 3) {
-      alert('Please enter at least 3 valid numeric values');
-      return;
+    try {
+      const data = parseData(input);
+
+      if (data.length < 3) {
+        showError(dataInput, 'Please enter at least 3 valid numeric values');
+        return;
+      }
+
+      if (data.length > 5000) {
+        showError(dataInput, 'Too many data points (maximum 5000). Please use a smaller dataset.');
+        return;
+      }
+
+      // Clear any previous errors
+      clearError(dataInput);
+
+      // Calculate statistics
+      const stats = calculateStats(data);
+
+      // Perform Shapiro-Wilk test
+      const swTest = shapiroWilkTest(data);
+
+      // Perform Grubbs' test for outliers
+      const outlierTest = grubbsTest(data);
+
+      // Display results
+      document.getElementById('sampleSize').textContent = stats.n;
+      document.getElementById('mean').textContent = stats.mean.toFixed(4);
+      document.getElementById('median').textContent = stats.median.toFixed(4);
+      document.getElementById('stdDev').textContent = stats.stdDev.toFixed(4);
+      document.getElementById('min').textContent = stats.min.toFixed(4);
+      document.getElementById('max').textContent = stats.max.toFixed(4);
+
+      document.getElementById('swW').textContent = swTest.w.toFixed(4);
+      document.getElementById('swP').textContent = swTest.p.toFixed(4);
+      document.getElementById('swInterpretation').textContent = swTest.isNormal ? 'Normal' : 'Non-normal';
+      document.getElementById('swInterpretation').className = 'py-1 font-semibold text-right ' +
+                                                            (swTest.isNormal ? 'text-green-600' : 'text-red-600');
+
+      // Display outliers
+      const noOutliersMessage = document.getElementById('noOutliersMessage');
+      const outliersList = document.getElementById('outliersList');
+      const outliersTable = document.getElementById('outliersTable');
+
+      if (outlierTest.outliers.length === 0) {
+        noOutliersMessage.classList.remove('hidden');
+        outliersList.classList.add('hidden');
+      } else {
+        noOutliersMessage.classList.add('hidden');
+        outliersList.classList.remove('hidden');
+
+        // Clear previous results
+        outliersTable.innerHTML = '';
+
+        // Add each outlier to the table
+        outlierTest.outliers.forEach(outlier => {
+          const row = document.createElement('tr');
+
+          const valueCell = document.createElement('td');
+          valueCell.className = 'py-1';
+          valueCell.textContent = outlier.value.toFixed(4);
+
+          const zScoreCell = document.createElement('td');
+          zScoreCell.className = 'py-1 text-right';
+          zScoreCell.textContent = outlier.zScore.toFixed(4);
+
+          const significantCell = document.createElement('td');
+          significantCell.className = 'py-1 text-right ' + (outlier.isSignificant ? 'text-red-600 font-semibold' : 'text-gray-600');
+          significantCell.textContent = outlier.isSignificant ? 'Yes' : 'No';
+
+          row.appendChild(valueCell);
+          row.appendChild(zScoreCell);
+          row.appendChild(significantCell);
+
+          outliersTable.appendChild(row);
+        });
+      }
+
+      // Create histogram
+      createHistogram(data, stats, swTest);
+
+      // Generate recommendations
+      let recommendation = '';
+      if (!swTest.isNormal) {
+        recommendation += 'Your data does not appear to be normally distributed. Consider: ';
+        recommendation += '<ul class="list-disc pl-5 mt-2">';
+        recommendation += '<li>Using non-parametric tests (e.g., Mann-Whitney U instead of t-test)</li>';
+        recommendation += '<li>Transforming your data (log, square root, etc.)</li>';
+        recommendation += '<li>Using robust statistical methods</li>';
+        recommendation += '</ul>';
+      } else {
+        recommendation += 'Your data appears to be normally distributed. ';
+        recommendation += 'Parametric tests like t-tests and ANOVA are appropriate.';
+      }
+
+      if (outlierTest.hasOutliers) {
+        recommendation += '<p class="mt-2">Your data contains significant outliers. Consider:</p>';
+        recommendation += '<ul class="list-disc pl-5 mt-2">';
+        recommendation += '<li>Checking for data entry errors</li>';
+        recommendation += '<li>Investigating the cause of outliers</li>';
+        recommendation += '<li>Using robust statistical methods</li>';
+        recommendation += '<li>Removing outliers (only if justified)</li>';
+        recommendation += '</ul>';
+      }
+
+      document.getElementById('recommendationText').innerHTML = recommendation;
+
+      // Show results container
+      document.getElementById('resultsContainer').classList.remove('hidden');
+
+      // Show success message
+      showSuccess(document.getElementById('checkNormality'), 'Analysis complete!');
+
+      // Scroll to results
+      document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      showError(dataInput, error.message || 'Error analyzing data');
     }
-
-    // Calculate statistics
-    const stats = calculateStats(data);
-
-    // Perform Shapiro-Wilk test
-    const swTest = shapiroWilkTest(data);
-
-    // Perform Grubbs' test for outliers
-    const outlierTest = grubbsTest(data);
-
-    // Display results
-    document.getElementById('sampleSize').textContent = stats.n;
-    document.getElementById('mean').textContent = stats.mean.toFixed(4);
-    document.getElementById('median').textContent = stats.median.toFixed(4);
-    document.getElementById('stdDev').textContent = stats.stdDev.toFixed(4);
-    document.getElementById('min').textContent = stats.min.toFixed(4);
-    document.getElementById('max').textContent = stats.max.toFixed(4);
-
-    document.getElementById('swW').textContent = swTest.w.toFixed(4);
-    document.getElementById('swP').textContent = swTest.p.toFixed(4);
-    document.getElementById('swInterpretation').textContent = swTest.isNormal ? 'Normal' : 'Non-normal';
-    document.getElementById('swInterpretation').className = 'py-1 font-semibold text-right ' +
-                                                          (swTest.isNormal ? 'text-green-600' : 'text-red-600');
-
-    // Display outliers
-    const noOutliersMessage = document.getElementById('noOutliersMessage');
-    const outliersList = document.getElementById('outliersList');
-    const outliersTable = document.getElementById('outliersTable');
-
-    if (outlierTest.outliers.length === 0) {
-      noOutliersMessage.classList.remove('hidden');
-      outliersList.classList.add('hidden');
-    } else {
-      noOutliersMessage.classList.add('hidden');
-      outliersList.classList.remove('hidden');
-
-      // Clear previous results
-      outliersTable.innerHTML = '';
-
-      // Add each outlier to the table
-      outlierTest.outliers.forEach(outlier => {
-        const row = document.createElement('tr');
-
-        const valueCell = document.createElement('td');
-        valueCell.className = 'py-1';
-        valueCell.textContent = outlier.value.toFixed(4);
-
-        const zScoreCell = document.createElement('td');
-        zScoreCell.className = 'py-1 text-right';
-        zScoreCell.textContent = outlier.zScore.toFixed(4);
-
-        const significantCell = document.createElement('td');
-        significantCell.className = 'py-1 text-right ' + (outlier.isSignificant ? 'text-red-600 font-semibold' : 'text-gray-600');
-        significantCell.textContent = outlier.isSignificant ? 'Yes' : 'No';
-
-        row.appendChild(valueCell);
-        row.appendChild(zScoreCell);
-        row.appendChild(significantCell);
-
-        outliersTable.appendChild(row);
-      });
-    }
-
-    // Create histogram
-    createHistogram(data, stats, swTest);
-
-    // Generate recommendations
-    let recommendation = '';
-    if (!swTest.isNormal) {
-      recommendation += 'Your data does not appear to be normally distributed. Consider: ';
-      recommendation += '<ul class="list-disc pl-5 mt-2">';
-      recommendation += '<li>Using non-parametric tests (e.g., Mann-Whitney U instead of t-test)</li>';
-      recommendation += '<li>Transforming your data (log, square root, etc.)</li>';
-      recommendation += '<li>Using robust statistical methods</li>';
-      recommendation += '</ul>';
-    } else {
-      recommendation += 'Your data appears to be normally distributed. ';
-      recommendation += 'Parametric tests like t-tests and ANOVA are appropriate.';
-    }
-
-    if (outlierTest.hasOutliers) {
-      recommendation += '<p class="mt-2">Your data contains significant outliers. Consider:</p>';
-      recommendation += '<ul class="list-disc pl-5 mt-2">';
-      recommendation += '<li>Checking for data entry errors</li>';
-      recommendation += '<li>Investigating the cause of outliers</li>';
-      recommendation += '<li>Using robust statistical methods</li>';
-      recommendation += '<li>Removing outliers (only if justified)</li>';
-      recommendation += '</ul>';
-    }
-
-    document.getElementById('recommendationText').innerHTML = recommendation;
-
-    // Show results container
-    document.getElementById('resultsContainer').classList.remove('hidden');
   });
 
   document.getElementById('generateExample').addEventListener('click', () => {
@@ -1350,92 +1919,155 @@ PIK3CA\t0.6\t1.1\t0.9\t1.4\t0.4`;
     return visited;
   }
 
+  // Add tooltips to inputs
+  addHelpIcon(document.querySelector('label[for="heatmapData"]'),
+    'Enter your matrix data with rows and columns separated by tabs or commas. The first row and/or column can contain labels.');
+
+  addHelpIcon(document.querySelector('label[for="dataFormat"]').parentNode,
+    'Select whether only the first row contains headers, or both the first row and first column contain labels.');
+
+  addHelpIcon(document.querySelector('label[for="delimiter"]').parentNode,
+    'Choose the delimiter used in your data. Use tab for data copied from spreadsheets.');
+
+  addHelpIcon(document.querySelector('label[for="colorScheme"]'),
+    'Select a color scheme for your heatmap. Different schemes highlight different patterns in your data.');
+
+  addHelpIcon(document.querySelector('label[for="clusterRows"]').parentNode,
+    'Clustering groups similar rows or columns together to help identify patterns in your data.');
+
+  addHelpIcon(document.querySelector('label[for="cellSizeSlider"]'),
+    'Adjust the size of cells in the heatmap. Larger cells are easier to see but may require scrolling for large datasets.');
+
+  addHelpIcon(document.querySelector('label[for="showValues"]'),
+    'Show the actual values in each cell of the heatmap.');
+
   // Generate the heatmap
   document.getElementById('generateHeatmap').addEventListener('click', () => {
+    const heatmapDataInput = document.getElementById('heatmapData');
+
     try {
+      if (!heatmapDataInput.value.trim()) {
+        showError(heatmapDataInput, 'Please enter data first');
+        return;
+      }
+
+      // Clear any previous errors
+      clearError(heatmapDataInput);
+
       const { data, xLabels, yLabels } = parseHeatmapData();
+
+      // Check data size
+      if (data.length > 100 || data[0].length > 100) {
+        if (!confirm('Large dataset detected (over 100 rows or columns). This may slow down your browser. Continue anyway?')) {
+          return;
+        }
+      }
+
       const colorScheme = document.getElementById('colorScheme').value;
       const clusterRows = document.getElementById('clusterRows').checked;
       const clusterCols = document.getElementById('clusterCols').checked;
       const cellSize = parseInt(document.getElementById('cellSizeSlider').value);
       const showValues = document.getElementById('showValues').checked;
 
-      // Apply clustering if selected
-      let rowOrder = Array.from({ length: data.length }, (_, i) => i);
-      let colOrder = Array.from({ length: data[0].length }, (_, i) => i);
+      // Show loading message
+      const generateButton = document.getElementById('generateHeatmap');
+      const originalButtonText = generateButton.textContent;
+      generateButton.textContent = 'Processing...';
+      generateButton.disabled = true;
 
-      if (clusterRows) {
-        rowOrder = clusterData(data, 0);
-      }
+      // Use setTimeout to allow the UI to update
+      setTimeout(() => {
+        try {
+          // Apply clustering if selected
+          let rowOrder = Array.from({ length: data.length }, (_, i) => i);
+          let colOrder = Array.from({ length: data[0].length }, (_, i) => i);
 
-      if (clusterCols) {
-        colOrder = clusterData(data, 1);
-      }
+          if (clusterRows) {
+            rowOrder = clusterData(data, 0);
+          }
 
-      // Reorder data and labels
-      const reorderedData = rowOrder.map(i => colOrder.map(j => data[i][j]));
-      const reorderedYLabels = rowOrder.map(i => yLabels[i]);
-      const reorderedXLabels = colOrder.map(j => xLabels[j]);
+          if (clusterCols) {
+            colOrder = clusterData(data, 1);
+          }
 
-      // Create heatmap
-      const heatmapData = [{
-        z: reorderedData,
-        x: reorderedXLabels,
-        y: reorderedYLabels,
-        type: 'heatmap',
-        colorscale: colorScheme,
-        showscale: true,
-        text: showValues ? reorderedData.map(row => row.map(val => val.toFixed(2))) : null,
-        hoverinfo: 'x+y+z',
-        hovertemplate: '%{y}<br>%{x}<br>Value: %{z}<extra></extra>'
-      }];
+          // Reorder data and labels
+          const reorderedData = rowOrder.map(i => colOrder.map(j => data[i][j]));
+          const reorderedYLabels = rowOrder.map(i => yLabels[i]);
+          const reorderedXLabels = colOrder.map(j => xLabels[j]);
 
-      const layout = {
-        title: 'Heatmap',
-        height: reorderedData.length * cellSize + 200,
-        width: reorderedData[0].length * cellSize + 200,
-        xaxis: {
-          title: '',
-          tickangle: -45
-        },
-        yaxis: {
-          title: ''
-        },
-        margin: {
-          l: 150,
-          r: 50,
-          b: 150,
-          t: 50,
-          pad: 4
+          // Create heatmap
+          const heatmapData = [{
+            z: reorderedData,
+            x: reorderedXLabels,
+            y: reorderedYLabels,
+            type: 'heatmap',
+            colorscale: colorScheme,
+            showscale: true,
+            text: showValues ? reorderedData.map(row => row.map(val => val.toFixed(2))) : null,
+            hoverinfo: 'x+y+z',
+            hovertemplate: '%{y}<br>%{x}<br>Value: %{z}<extra></extra>'
+          }];
+
+          const layout = {
+            title: 'Heatmap',
+            height: Math.min(reorderedData.length * cellSize + 200, 800),
+            width: Math.min(reorderedData[0].length * cellSize + 200, window.innerWidth * 0.9),
+            xaxis: {
+              title: '',
+              tickangle: -45
+            },
+            yaxis: {
+              title: ''
+            },
+            margin: {
+              l: 150,
+              r: 50,
+              b: 150,
+              t: 50,
+              pad: 4
+            }
+          };
+
+          const config = {
+            responsive: true,
+            toImageButtonOptions: {
+              format: 'png',
+              filename: 'heatmap',
+              height: layout.height,
+              width: layout.width,
+              scale: 2
+            }
+          };
+
+          Plotly.newPlot('heatmapPlot', heatmapData, layout, config);
+          document.getElementById('heatmapContainer').classList.remove('hidden');
+
+          // Set up download button
+          document.getElementById('downloadHeatmap').onclick = () => {
+            Plotly.downloadImage('heatmapPlot', {
+              format: 'png',
+              filename: 'heatmap',
+              height: layout.height,
+              width: layout.width,
+              scale: 2
+            });
+          };
+
+          // Show success message
+          showSuccess(generateButton, 'Heatmap generated successfully!');
+
+          // Scroll to heatmap
+          document.getElementById('heatmapContainer').scrollIntoView({ behavior: 'smooth' });
+        } catch (error) {
+          showError(heatmapDataInput, error.message || 'Error generating heatmap');
+        } finally {
+          // Restore button
+          generateButton.textContent = originalButtonText;
+          generateButton.disabled = false;
         }
-      };
-
-      const config = {
-        responsive: true,
-        toImageButtonOptions: {
-          format: 'png',
-          filename: 'heatmap',
-          height: layout.height,
-          width: layout.width,
-          scale: 2
-        }
-      };
-
-      Plotly.newPlot('heatmapPlot', heatmapData, layout, config);
-      document.getElementById('heatmapContainer').classList.remove('hidden');
-
-      // Set up download button
-      document.getElementById('downloadHeatmap').onclick = () => {
-        Plotly.downloadImage('heatmapPlot', {
-          format: 'png',
-          filename: 'heatmap',
-          height: layout.height,
-          width: layout.width,
-          scale: 2
-        });
-      };
+      }, 50);
     } catch (error) {
-      alert(error.message || 'Error generating heatmap');
+      showError(heatmapDataInput, error.message || 'Error parsing data');
     }
   });
 }
@@ -1804,56 +2436,91 @@ function unitConverterUI(root) {
   // Initialize unit selectors
   populateUnitSelectors();
 
+  // Add tooltips to inputs
+  addHelpIcon(document.querySelector('label[for="conversionType"]'),
+    'Select the type of units you want to convert between.');
+
+  addHelpIcon(document.querySelector('label[for="fromValue"]'),
+    'Enter the value you want to convert.');
+
+  addHelpIcon(document.querySelector('label[for="calcType"]'),
+    'Select the type of concentration calculation you want to perform.');
+
   // Handle unit conversion
   document.getElementById('convertUnits').addEventListener('click', () => {
-    const conversionType = document.getElementById('conversionType').value;
-    const fromValue = parseFloat(document.getElementById('fromValue').value);
+    const fromValueInput = document.getElementById('fromValue');
+    const fromValue = parseFloat(fromValueInput.value);
     const fromUnit = document.getElementById('fromUnit').value;
     const toUnit = document.getElementById('toUnit').value;
+    const toValueInput = document.getElementById('toValue');
+    const conversionType = document.getElementById('conversionType').value;
 
-    if (isNaN(fromValue)) {
-      alert('Please enter a valid number');
+    // Validate input
+    if (!validateNumericInput(fromValueInput)) {
       return;
     }
 
-    let result;
-
-    if (conversionType === 'centrifuge') {
-      // Special case for centrifuge conversion (rpm ↔ rcf)
-      // rcf = 1.118 × 10^-5 × r × rpm²
-      // where r is the radius in cm (default to 10 cm if not specified)
-      const radius = 10; // cm
-
-      if (fromUnit === 'rpm' && toUnit === 'rcf') {
-        result = 1.118e-5 * radius * Math.pow(fromValue, 2);
-      } else if (fromUnit === 'rcf' && toUnit === 'rpm') {
-        result = Math.sqrt(fromValue / (1.118e-5 * radius));
-      }
-    } else if (conversionType === 'temperature') {
-      // Special case for temperature conversion
-      if (fromUnit === '°C' && toUnit === '°F') {
-        result = (fromValue * 9/5) + 32;
-      } else if (fromUnit === '°F' && toUnit === '°C') {
-        result = (fromValue - 32) * 5/9;
-      } else if (fromUnit === '°C' && toUnit === 'K') {
-        result = fromValue + 273.15;
-      } else if (fromUnit === 'K' && toUnit === '°C') {
-        result = fromValue - 273.15;
-      } else if (fromUnit === '°F' && toUnit === 'K') {
-        result = (fromValue - 32) * 5/9 + 273.15;
-      } else if (fromUnit === 'K' && toUnit === '°F') {
-        result = (fromValue - 273.15) * 9/5 + 32;
-      } else {
-        result = fromValue; // Same unit
-      }
-    } else {
-      // Regular unit conversion
-      const units = unitData[conversionType];
-      const baseValue = fromValue * units[fromUnit];
-      result = baseValue / units[toUnit];
+    // Check for same units
+    if (fromUnit === toUnit) {
+      toValueInput.value = fromValue.toPrecision(6);
+      showSuccess(document.getElementById('convertUnits'), 'Units are the same, no conversion needed');
+      return;
     }
 
-    document.getElementById('toValue').value = result.toPrecision(6);
+    try {
+      let result;
+
+      if (conversionType === 'centrifuge') {
+        // Special case for centrifuge conversion (rpm ↔ rcf)
+        // rcf = 1.118 × 10^-5 × r × rpm²
+        // where r is the radius in cm (default to 10 cm if not specified)
+        const radius = 10; // cm
+
+        if (fromUnit === 'rpm' && toUnit === 'rcf') {
+          result = 1.118e-5 * radius * Math.pow(fromValue, 2);
+        } else if (fromUnit === 'rcf' && toUnit === 'rpm') {
+          result = Math.sqrt(fromValue / (1.118e-5 * radius));
+        }
+      } else if (conversionType === 'temperature') {
+        // Special case for temperature conversion
+        if (fromUnit === '°C' && toUnit === '°F') {
+          result = (fromValue * 9/5) + 32;
+        } else if (fromUnit === '°F' && toUnit === '°C') {
+          result = (fromValue - 32) * 5/9;
+        } else if (fromUnit === '°C' && toUnit === 'K') {
+          result = fromValue + 273.15;
+        } else if (fromUnit === 'K' && toUnit === '°C') {
+          result = fromValue - 273.15;
+        } else if (fromUnit === '°F' && toUnit === 'K') {
+          result = (fromValue - 32) * 5/9 + 273.15;
+        } else if (fromUnit === 'K' && toUnit === '°F') {
+          result = (fromValue - 273.15) * 9/5 + 32;
+        } else {
+          result = fromValue; // Same unit
+        }
+
+        // Check for absolute zero violations
+        if ((fromUnit === '°C' && result < -273.15) ||
+            (fromUnit === '°F' && result < -459.67) ||
+            (fromUnit === 'K' && result < 0)) {
+          throw new Error('Temperature cannot be below absolute zero');
+        }
+      } else {
+        // Regular unit conversion
+        const units = unitData[conversionType];
+        const baseValue = fromValue * units[fromUnit];
+        result = baseValue / units[toUnit];
+      }
+
+      if (!isFinite(result) || isNaN(result)) {
+        throw new Error('Conversion resulted in an invalid value');
+      }
+
+      toValueInput.value = result.toPrecision(6);
+      showSuccess(document.getElementById('convertUnits'), 'Conversion successful!');
+    } catch (error) {
+      showError(fromValueInput, error.message || 'Error during conversion');
+    }
   });
 
   // Handle unit swap
@@ -1899,21 +2566,50 @@ function unitConverterUI(root) {
     });
   });
 
+  // Add more tooltips
+  addHelpIcon(document.querySelector('label[for="molarityInput"]'),
+    'Enter the molar concentration of your solution.');
+
+  addHelpIcon(document.querySelector('label[for="mwInput"]'),
+    'Enter the molecular weight of your compound in g/mol. Common molecular weights are provided below.');
+
+  addHelpIcon(document.querySelector('label[for="stockConc"]'),
+    'Enter the concentration of your stock solution.');
+
+  addHelpIcon(document.querySelector('label[for="desiredConc"]'),
+    'Enter the final concentration you want to achieve. Must be less than stock concentration.');
+
+  addHelpIcon(document.querySelector('label[for="finalVolume"]'),
+    'Enter the total volume of solution you want to prepare.');
+
+  addHelpIcon(document.querySelector('label[for="percentDesired"]'),
+    'Enter the percentage concentration you want to achieve (0-100%).');
+
   // Handle concentration calculations
   document.getElementById('calculateConcentration').addEventListener('click', () => {
     const calcType = document.getElementById('calcType').value;
+    const calculateButton = document.getElementById('calculateConcentration');
 
     try {
       if (calcType === 'molarToMass') {
         // Molarity to mass concentration
-        const molarity = parseFloat(document.getElementById('molarityInput').value);
-        const molarityUnit = parseFloat(document.getElementById('molarityUnit').value);
-        const mw = parseFloat(document.getElementById('mwInput').value);
-        const massUnit = document.getElementById('massConcentrationUnit').value;
+        const molarityInput = document.getElementById('molarityInput');
+        const mwInput = document.getElementById('mwInput');
+        const resultInput = document.getElementById('massConcentrationResult');
 
-        if (isNaN(molarity) || isNaN(mw)) {
-          throw new Error('Please enter valid numbers');
+        // Validate inputs
+        if (!validateNumericInput(molarityInput, 0)) {
+          return;
         }
+
+        if (!validateNumericInput(mwInput, 0.001)) {
+          return;
+        }
+
+        const molarity = parseFloat(molarityInput.value);
+        const molarityUnit = parseFloat(document.getElementById('molarityUnit').value);
+        const mw = parseFloat(mwInput.value);
+        const massUnit = document.getElementById('massConcentrationUnit').value;
 
         // Calculate mass concentration in g/L
         const massConcentration = molarity * molarityUnit * mw;
@@ -1930,18 +2626,28 @@ function unitConverterUI(root) {
           default: result = massConcentration;
         }
 
-        document.getElementById('massConcentrationResult').value = result.toPrecision(6);
+        resultInput.value = result.toPrecision(6);
+        showSuccess(calculateButton, 'Calculation successful!');
       }
       else if (calcType === 'massToMolar') {
         // Mass concentration to molarity
-        const massConc = parseFloat(document.getElementById('massInput').value);
-        const massUnit = document.getElementById('massUnit').value;
-        const mw = parseFloat(document.getElementById('mwInput2').value);
-        const molarityUnit = parseFloat(document.getElementById('molarityResultUnit').value);
+        const massInput = document.getElementById('massInput');
+        const mwInput = document.getElementById('mwInput2');
+        const resultInput = document.getElementById('molarityResult');
 
-        if (isNaN(massConc) || isNaN(mw)) {
-          throw new Error('Please enter valid numbers');
+        // Validate inputs
+        if (!validateNumericInput(massInput, 0)) {
+          return;
         }
+
+        if (!validateNumericInput(mwInput, 0.001)) {
+          return;
+        }
+
+        const massConc = parseFloat(massInput.value);
+        const massUnit = document.getElementById('massUnit').value;
+        const mw = parseFloat(mwInput.value);
+        const molarityUnit = parseFloat(document.getElementById('molarityResultUnit').value);
 
         // Convert to g/L
         let massInGPerL;
@@ -1961,24 +2667,45 @@ function unitConverterUI(root) {
         // Convert to selected unit
         const result = molarity / molarityUnit;
 
-        document.getElementById('molarityResult').value = result.toPrecision(6);
+        resultInput.value = result.toPrecision(6);
+        showSuccess(calculateButton, 'Calculation successful!');
       }
       else if (calcType === 'dilution') {
         // Dilution calculator (C1V1 = C2V2)
-        const stockConc = parseFloat(document.getElementById('stockConc').value);
-        const stockConcUnit = document.getElementById('stockConcUnit').value;
-        const desiredConc = parseFloat(document.getElementById('desiredConc').value);
-        const desiredConcUnit = document.getElementById('desiredConcUnit').value;
-        const finalVolume = parseFloat(document.getElementById('finalVolume').value);
-        const finalVolumeUnit = document.getElementById('finalVolumeUnit').value;
+        const stockConcInput = document.getElementById('stockConc');
+        const desiredConcInput = document.getElementById('desiredConc');
+        const finalVolumeInput = document.getElementById('finalVolume');
 
-        if (isNaN(stockConc) || isNaN(desiredConc) || isNaN(finalVolume)) {
-          throw new Error('Please enter valid numbers');
+        // Validate inputs
+        if (!validateNumericInput(stockConcInput, 0)) {
+          return;
         }
+
+        if (!validateNumericInput(desiredConcInput, 0)) {
+          return;
+        }
+
+        if (!validateNumericInput(finalVolumeInput, 0)) {
+          return;
+        }
+
+        const stockConc = parseFloat(stockConcInput.value);
+        const stockConcUnit = document.getElementById('stockConcUnit').value;
+        const desiredConc = parseFloat(desiredConcInput.value);
+        const desiredConcUnit = document.getElementById('desiredConcUnit').value;
+        const finalVolume = parseFloat(finalVolumeInput.value);
+        const finalVolumeUnit = document.getElementById('finalVolumeUnit').value;
 
         // Check if units are compatible
         if (stockConcUnit !== desiredConcUnit) {
-          throw new Error('Stock and desired concentration units must be the same');
+          showError(desiredConcInput, 'Stock and desired concentration units must be the same');
+          return;
+        }
+
+        // Check if desired concentration is less than stock
+        if (desiredConc > stockConc) {
+          showError(desiredConcInput, 'Desired concentration must be less than or equal to stock concentration');
+          return;
         }
 
         // Calculate stock volume (V1 = C2V2/C1)
@@ -1986,26 +2713,32 @@ function unitConverterUI(root) {
         const diluentVolume = finalVolume - stockVolume;
 
         if (stockVolume > finalVolume) {
-          throw new Error('Stock concentration is too low to achieve desired concentration');
+          showError(stockConcInput, 'Stock concentration is too low to achieve desired concentration');
+          return;
         }
 
         // Display result
         document.getElementById('stockVolume').textContent = `${stockVolume.toFixed(3)} ${finalVolumeUnit}`;
         document.getElementById('diluentVolume').textContent = `${diluentVolume.toFixed(3)} ${finalVolumeUnit}`;
+        showSuccess(calculateButton, 'Calculation successful!');
       }
       else if (calcType === 'massPercent') {
         // Mass percent solution
-        const percentDesired = parseFloat(document.getElementById('percentDesired').value);
-        const finalAmount = parseFloat(document.getElementById('finalAmount').value);
+        const percentDesiredInput = document.getElementById('percentDesired');
+        const finalAmountInput = document.getElementById('finalAmount');
+
+        // Validate inputs
+        if (!validateNumericInput(percentDesiredInput, 0, 100)) {
+          return;
+        }
+
+        if (!validateNumericInput(finalAmountInput, 0)) {
+          return;
+        }
+
+        const percentDesired = parseFloat(percentDesiredInput.value);
+        const finalAmount = parseFloat(finalAmountInput.value);
         const finalAmountUnit = document.getElementById('finalAmountUnit').value;
-
-        if (isNaN(percentDesired) || isNaN(finalAmount)) {
-          throw new Error('Please enter valid numbers');
-        }
-
-        if (percentDesired < 0 || percentDesired > 100) {
-          throw new Error('Percentage must be between 0 and 100');
-        }
 
         // Calculate solute amount
         const soluteAmount = (percentDesired / 100) * finalAmount;
@@ -2014,6 +2747,7 @@ function unitConverterUI(root) {
         // Display result
         document.getElementById('soluteAmount').textContent = `${soluteAmount.toFixed(3)} ${finalAmountUnit}`;
         document.getElementById('solventAmount').textContent = `${solventAmount.toFixed(3)} ${finalAmountUnit}`;
+        showSuccess(calculateButton, 'Calculation successful!');
       }
     } catch (error) {
       alert(error.message || 'Calculation error');
@@ -2225,21 +2959,58 @@ function cellCounterUI(root) {
       });
   });
 
+  // Add tooltips to inputs
+  addHelpIcon(document.querySelector('label[for="imageUpload"]'),
+    'Upload a microscopy image containing cells. Works best with high-contrast, well-focused images.');
+
+  addHelpIcon(document.querySelector('label[for="thresholdSlider"]'),
+    'Adjust the threshold to control cell detection sensitivity. Lower values detect more objects, higher values are more selective.');
+
+  addHelpIcon(document.querySelector('label[for="minSizeSlider"]'),
+    'Set the minimum size (in pixels) for an object to be counted as a cell. Helps filter out noise and debris.');
+
+  addHelpIcon(document.querySelector('label[for="maxSizeSlider"]'),
+    'Set the maximum size (in pixels) for an object to be counted as a cell. Helps filter out cell clumps or artifacts.');
+
+  addHelpIcon(document.querySelector('label[for="invertImage"]'),
+    'Check this box if your cells are dark on a light background. Leave unchecked if cells are light on a dark background.');
+
   // Process image button
   processButton.addEventListener('click', () => {
     if (!currentImage) {
-      alert('Please upload an image first');
+      showError(document.getElementById('imageUpload'), 'Please upload an image first');
       return;
     }
 
     // Show loading overlay
     loadingOverlay.classList.remove('hidden');
 
+    // Disable process button to prevent multiple clicks
+    processButton.disabled = true;
+    processButton.textContent = 'Processing...';
+
     // Load OpenCV.js if not already loaded
     if (!window.cv) {
-      loadOpenCV(() => processImageWithOpenCV());
+      loadingOverlay.querySelector('p').textContent = 'Loading OpenCV.js (this may take a moment)...';
+      loadOpenCV(() => {
+        try {
+          processImageWithOpenCV();
+        } catch (error) {
+          loadingOverlay.classList.add('hidden');
+          processButton.disabled = false;
+          processButton.textContent = 'Count Cells';
+          alert(error.message || 'Error processing image');
+        }
+      });
     } else {
-      processImageWithOpenCV();
+      try {
+        processImageWithOpenCV();
+      } catch (error) {
+        loadingOverlay.classList.add('hidden');
+        processButton.disabled = false;
+        processButton.textContent = 'Count Cells';
+        alert(error.message || 'Error processing image');
+      }
     }
   });
 
@@ -2316,6 +3087,18 @@ function cellCounterUI(root) {
       const maxSize = parseInt(maxSizeSlider.value);
       const invert = invertCheckbox.checked;
 
+      // Validate parameters
+      if (minSize >= maxSize) {
+        throw new Error('Minimum cell size must be less than maximum cell size');
+      }
+
+      // Check image size
+      if (imageWidth * imageHeight > 25000000) { // 25 megapixels
+        if (!confirm('This is a very large image and may slow down your browser. Continue anyway?')) {
+          throw new Error('Processing cancelled');
+        }
+      }
+
       // Create a canvas to process the image at full resolution
       const processCanvas = document.createElement('canvas');
       processCanvas.width = imageWidth;
@@ -2334,99 +3117,231 @@ function cellCounterUI(root) {
       const hierarchy = new cv.Mat();
       const contours = new cv.MatVector();
 
-      // Convert to grayscale
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      try {
+        // Convert to grayscale
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-      // Apply Gaussian blur to reduce noise
-      const ksize = new cv.Size(5, 5);
-      cv.GaussianBlur(gray, gray, ksize, 0);
+        // Apply Gaussian blur to reduce noise
+        const ksize = new cv.Size(5, 5);
+        cv.GaussianBlur(gray, gray, ksize, 0);
 
-      // Apply binary threshold
-      if (invert) {
-        cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY_INV);
-      } else {
-        cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY);
-      }
+        // Apply binary threshold
+        if (invert) {
+          cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY_INV);
+        } else {
+          cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY);
+        }
 
-      // Find contours
-      cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        // Find contours
+        cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      // Filter contours by size and draw them
-      cv.cvtColor(binary, dst, cv.COLOR_GRAY2RGBA);
+        // Check if any contours were found
+        if (contours.size() === 0) {
+          throw new Error('No cells detected. Try adjusting the threshold or inverting the image.');
+        }
 
-      let cellCount = 0;
+        // Filter contours by size and draw them
+        cv.cvtColor(binary, dst, cv.COLOR_GRAY2RGBA);
 
-      for (let i = 0; i < contours.size(); i++) {
-        const contour = contours.get(i);
-        const area = cv.contourArea(contour);
+        let cellCount = 0;
+        let validContours = [];
 
-        if (area >= minSize && area <= maxSize) {
+        // First pass: count valid contours
+        for (let i = 0; i < contours.size(); i++) {
+          const contour = contours.get(i);
+          const area = cv.contourArea(contour);
+
+          if (area >= minSize && area <= maxSize) {
+            validContours.push({
+              index: i,
+              contour: contour,
+              area: area
+            });
+          }
+        }
+
+        // Check if any valid contours were found
+        if (validContours.length === 0) {
+          throw new Error('No cells match the size criteria. Try adjusting the min/max cell size.');
+        }
+
+        // Sort contours by size (largest first) for better numbering
+        validContours.sort((a, b) => b.area - a.area);
+
+        // Second pass: draw and number contours
+        for (let i = 0; i < validContours.length; i++) {
+          const { index, contour } = validContours[i];
+
           // Draw contour
           const color = new cv.Scalar(0, 255, 0, 255); // Green
-          cv.drawContours(dst, contours, i, color, 2);
+          cv.drawContours(dst, contours, index, color, 2);
 
           // Draw cell number
           cellCount++;
           const moments = cv.moments(contour);
-          const cx = moments.m10 / moments.m00;
-          const cy = moments.m01 / moments.m00;
-          cv.putText(dst, cellCount.toString(), new cv.Point(cx, cy), cv.FONT_HERSHEY_SIMPLEX, 0.5, new cv.Scalar(255, 0, 0, 255), 1);
+
+          // Check for valid moments to avoid division by zero
+          if (moments.m00 !== 0) {
+            const cx = moments.m10 / moments.m00;
+            const cy = moments.m01 / moments.m00;
+            cv.putText(dst, cellCount.toString(), new cv.Point(cx, cy), cv.FONT_HERSHEY_SIMPLEX, 0.5, new cv.Scalar(255, 0, 0, 255), 1);
+          }
         }
+
+        // Calculate cell density (cells per mm²)
+        // Assuming a standard microscope calibration of 0.5 µm per pixel (adjust as needed)
+        const pixelsPerMm = 2000; // 2000 pixels = 1 mm
+        const imageAreaMm2 = (imageWidth * imageHeight) / (pixelsPerMm * pixelsPerMm);
+        const cellDensity = cellCount / imageAreaMm2;
+
+        // Display results
+        cellCountElement.textContent = cellCount;
+        cellDensityElement.textContent = cellDensity.toFixed(2);
+
+        // Resize output canvas to fit image proportionally
+        const maxWidth = outputCanvas.parentElement.clientWidth;
+        let displayWidth = imageWidth;
+        let displayHeight = imageHeight;
+
+        if (displayWidth > maxWidth) {
+          const ratio = maxWidth / displayWidth;
+          displayWidth = maxWidth;
+          displayHeight = displayHeight * ratio;
+        }
+
+        outputCanvas.width = displayWidth;
+        outputCanvas.height = displayHeight;
+
+        // Display processed image
+        cv.imshow(outputCanvas, dst);
+
+        // Store processed image
+        processedImage = dst.clone();
+
+        // Show results
+        resultsContainer.classList.remove('hidden');
+
+        // Show success message
+        showSuccess(processButton, `Successfully counted ${cellCount} cells!`);
+
+        // Scroll to results
+        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+      } finally {
+        // Clean up OpenCV resources
+        src.delete();
+        dst.delete();
+        gray.delete();
+        binary.delete();
+        hierarchy.delete();
+        contours.delete();
       }
-
-      // Calculate cell density (cells per mm²)
-      // Assuming a standard microscope calibration of 0.5 µm per pixel (adjust as needed)
-      const pixelsPerMm = 2000; // 2000 pixels = 1 mm
-      const imageAreaMm2 = (imageWidth * imageHeight) / (pixelsPerMm * pixelsPerMm);
-      const cellDensity = cellCount / imageAreaMm2;
-
-      // Display results
-      cellCountElement.textContent = cellCount;
-      cellDensityElement.textContent = cellDensity.toFixed(2);
-
-      // Resize output canvas to fit image proportionally
-      const maxWidth = outputCanvas.parentElement.clientWidth;
-      let displayWidth = imageWidth;
-      let displayHeight = imageHeight;
-
-      if (displayWidth > maxWidth) {
-        const ratio = maxWidth / displayWidth;
-        displayWidth = maxWidth;
-        displayHeight = displayHeight * ratio;
-      }
-
-      outputCanvas.width = displayWidth;
-      outputCanvas.height = displayHeight;
-
-      // Display processed image
-      cv.imshow(outputCanvas, dst);
-
-      // Store processed image
-      processedImage = dst.clone();
-
-      // Show results
-      resultsContainer.classList.remove('hidden');
-
-      // Clean up
-      src.delete();
-      dst.delete();
-      gray.delete();
-      binary.delete();
-      hierarchy.delete();
-      contours.delete();
-
     } catch (error) {
       console.error('Error processing image:', error);
-      alert('Error processing image. Please try a different image or adjust settings.');
+      alert(error.message || 'Error processing image. Please try a different image or adjust settings.');
     } finally {
       // Hide loading overlay
       loadingOverlay.classList.add('hidden');
+
+      // Re-enable process button
+      processButton.disabled = false;
+      processButton.textContent = 'Count Cells';
     }
   }
 }
 
-// Load default tool
-loadTool('testGenie');
+// ========== WELCOME SCREEN ========== //
+function welcomeScreenUI(root) {
+  root.innerHTML = `
+  <div class="max-w-4xl mx-auto">
+    <h2 class="text-xl font-semibold mb-4">Welcome to Sci Mini-Suite</h2>
+
+    <div class="bg-blue-50 p-6 rounded-lg border border-blue-200 mb-6">
+      <h3 class="font-semibold text-lg mb-3">Your All-in-One Scientific Toolkit</h3>
+      <p class="mb-4">Sci Mini-Suite is a collection of lightweight, browser-based scientific tools for everyday lab and data analysis tasks. All tools run entirely in your browser - no data is sent to any server.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <h4 class="font-semibold mb-2">Statistical Tools</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">Stat Test Genie</span> - Find the right statistical test</li>
+            <li><span class="font-medium">Power & Sample-Size Wizard</span> - Calculate required sample sizes</li>
+            <li><span class="font-medium">Normality & Outlier Checker</span> - Test data distribution</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Lab Tools</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">Lab Math Calc</span> - Dilution calculations</li>
+            <li><span class="font-medium">Unit & Concentration Converter</span> - Convert between units</li>
+            <li><span class="font-medium">Quick Cell-Counter</span> - Count cells in images</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h4 class="font-semibold mb-2">Data Tools</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">CSV ↔ JSON Converter</span> - Convert between formats</li>
+            <li><span class="font-medium">Quick-Plot Lab</span> - Create plots from data</li>
+            <li><span class="font-medium">Heat-Mapper</span> - Create heatmaps from matrices</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Sequence Tools</h4>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><span class="font-medium">FAST-Viewer</span> - View and analyze DNA/RNA sequences</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200 mb-6">
+      <h3 class="font-semibold text-lg mb-3">Getting Started</h3>
+      <ol class="list-decimal pl-5 space-y-2">
+        <li>Select a tool from the navigation bar above</li>
+        <li>Each tool has specific instructions and tooltips (hover over inputs for help)</li>
+        <li>All calculations happen in your browser - your data never leaves your computer</li>
+        <li>If you encounter any issues, try refreshing the page</li>
+      </ol>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+        <h3 class="font-semibold mb-2">Most Popular Tools</h3>
+        <div class="space-y-2">
+          <button onclick="loadTool('powerWizard')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Power & Sample-Size Wizard</button>
+          <button onclick="loadTool('labCalc')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Lab Math Calc</button>
+          <button onclick="loadTool('quickPlot')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Quick-Plot Lab</button>
+        </div>
+      </div>
+
+      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+        <h3 class="font-semibold mb-2">New Tools</h3>
+        <div class="space-y-2">
+          <button onclick="loadTool('heatMapper')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Heat-Mapper</button>
+          <button onclick="loadTool('unitConverter')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Unit & Concentration Converter</button>
+          <button onclick="loadTool('cellCounter')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Quick Cell-Counter (Beta)</button>
+        </div>
+      </div>
+
+      <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+        <h3 class="font-semibold mb-2">Support This Project</h3>
+        <p class="text-sm mb-3">Sci Mini-Suite is free to use and developed by scientists for scientists. Your support helps keep it running and growing.</p>
+        <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="block bg-yellow-400 text-black px-3 py-2 rounded text-center hover:bg-yellow-500">☕ Buy Me a Coffee</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Add welcome screen to tools registry
+tools.welcome = {
+  name: 'Welcome',
+  render: welcomeScreenUI
+};
+
+// Load welcome screen by default
+loadTool('welcome');
 </script>
 </body>
 </html>
