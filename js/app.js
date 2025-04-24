@@ -11,9 +11,99 @@ import { welcomeScreenUI } from './tools/welcome.js';
 import { curveFitterUI } from './tools/curve-fitter.js';
 import { expDesignerUI } from './tools/exp-designer.js';
 
-// Tool registry with only the available tools
+// Tool registry with all available tools
 const tools = {
-  // Add new premium tools
+  // Free tools
+  welcome: {
+    name: 'Welcome',
+    render: welcomeScreenUI
+  },
+  // Placeholder tools that will be implemented later
+  calculator: {
+    name: 'Scientific Calculator',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Scientific Calculator</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  dataViewer: {
+    name: 'Data Viewer',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Data Visualization Tool</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  statisticsCalculator: {
+    name: 'Statistics Calculator',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Statistics Calculator</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  unitConverter: {
+    name: 'Unit Converter',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Scientific Unit Converter</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  molCalc: {
+    name: 'Molecular Calculator',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Molecular Weight Calculator</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  imageAnalysis: {
+    name: 'Image Analysis',
+    render: function(container, helpers) {
+      container.innerHTML = `
+        <div class="p-6">
+          <h2 class="text-xl font-bold mb-4">Scientific Image Analysis</h2>
+          <div class="p-4 bg-yellow-100 rounded-lg">
+            <p>🚧 This tool is currently being rebuilt with exciting new features!</p>
+            <p class="mt-2">Please check back soon.</p>
+          </div>
+        </div>
+      `;
+    }
+  },
+  // Premium tools (implemented)
   curveFitter: {
     name: 'Curve Fitting Toolbox',
     render: curveFitterUI,
@@ -23,10 +113,6 @@ const tools = {
     name: 'Experimental Design Planner',
     render: expDesignerUI,
     premium: true
-  },
-  welcome: {
-    name: 'Welcome',
-    render: welcomeScreenUI
   }
 };
 

@@ -107,5 +107,101 @@ export const helpContent = {
     </ul>
 
     <p>This tool is invaluable for researchers in all scientific disciplines who want to ensure their experiments are designed with statistical rigor to maximize the chance of meaningful results.</p>
+  `,
+  
+  calculator: `
+    <h4>Scientific Calculator</h4>
+    <p>The Scientific Calculator is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Advanced mathematical functions</li>
+      <li>Unit-aware calculations</li>
+      <li>Formula memory and history</li>
+      <li>Graphing capabilities</li>
+      <li>Variable support</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
+  `,
+  
+  dataViewer: `
+    <h4>Data Visualization Tool</h4>
+    <p>The Data Visualization Tool is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Multiple chart types (scatter, bar, line, pie)</li>
+      <li>Interactive data exploration</li>
+      <li>Statistical overlays</li>
+      <li>CSV/Excel data import</li>
+      <li>High-resolution export options</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
+  `,
+  
+  statisticsCalculator: `
+    <h4>Statistics Calculator</h4>
+    <p>The Statistics Calculator is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Descriptive statistics</li>
+      <li>Hypothesis testing</li>
+      <li>ANOVA and regression analysis</li>
+      <li>Non-parametric tests</li>
+      <li>Distribution fitting</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
+  `,
+  
+  unitConverter: `
+    <h4>Scientific Unit Converter</h4>
+    <p>The Scientific Unit Converter is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Comprehensive unit categories</li>
+      <li>Scientific notation support</li>
+      <li>Custom unit definitions</li>
+      <li>Batch conversion</li>
+      <li>Dimensional analysis</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
+  `,
+  
+  molCalc: `
+    <h4>Molecular Weight Calculator</h4>
+    <p>The Molecular Weight Calculator is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Chemical formula parsing</li>
+      <li>Isotope distribution</li>
+      <li>Elemental composition</li>
+      <li>Protein sequence analysis</li>
+      <li>Solution preparation calculator</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
+  `,
+  
+  imageAnalysis: `
+    <h4>Scientific Image Analysis</h4>
+    <p>The Scientific Image Analysis tool is being rebuilt with exciting new features.</p>
+    
+    <h5>Coming Soon:</h5>
+    <ul>
+      <li>Particle counting and measurement</li>
+      <li>Cell counting and morphology</li>
+      <li>Intensity profile analysis</li>
+      <li>Gel and western blot quantification</li>
+      <li>Image calibration and scale bar tools</li>
+    </ul>
+    
+    <p>Check back soon for this upgraded tool!</p>
   `
 };
