@@ -1,0 +1,188 @@
+/**
+ * Main application module for Sci Mini-Suite
+ */
+
+import { bumpCounter, toast, createFloatingActionButton, showOnboardingModal } from './core/utils.js';
+import { createTooltips, addHelpIcon, showToolHelp } from './core/ui-helpers.js';
+import { helpContent } from './core/help-content.js';
+
+// Import tool modules
+import { statGenieUI } from './tools/stat-genie.js';
+import { powerWizardUI } from './tools/power-wizard.js';
+import { normalityCheckerUI } from './tools/normality-checker.js';
+import { csvConverterUI } from './tools/csv-converter.js';
+import { quickPlotUI } from './tools/quick-plot.js';
+import { heatMapperUI } from './tools/heat-mapper.js';
+import { labCalcUI } from './tools/lab-calc.js';
+import { unitConverterUI } from './tools/unit-converter.js';
+import { fastViewerUI } from './tools/fast-viewer.js';
+import { cellCounterUI } from './tools/cell-counter.js';
+import { imageAnalysisUI } from './tools/image-analysis.js';
+import { welcomeScreenUI } from './tools/welcome.js';
+// Import new premium tools
+import { curveFitterUI } from './tools/curve-fitter.js';
+import { expDesignerUI } from './tools/exp-designer.js';
+
+// Tool registry
+const tools = {
+  testGenie: {
+    name: 'Stat Test Genie',
+    render: statGenieUI
+  },
+  powerWizard: {
+    name: 'Power & Sample-Size Wizard',
+    render: powerWizardUI
+  },
+  normalityChecker: {
+    name: 'Normality & Outlier Checker',
+    render: normalityCheckerUI
+  },
+  csvConverter: {
+    name: 'CSV to JSON Converter',
+    render: csvConverterUI
+  },
+  quickPlot: {
+    name: 'Quick-Plot Lab',
+    render: quickPlotUI
+  },
+  heatMapper: {
+    name: 'Heat-Mapper',
+    render: heatMapperUI
+  },
+  labCalc: {
+    name: 'Lab Math Calc',
+    render: labCalcUI
+  },
+  unitConverter: {
+    name: 'Unit & Concentration Converter',
+    render: unitConverterUI
+  },
+  fastViewer: {
+    name: 'FAST-Viewer',
+    render: fastViewerUI
+  },
+  cellCounter: {
+    name: 'Quick Cell-Counter (Beta)',
+    render: cellCounterUI
+  },
+  imageAnalysis: {
+    name: 'Image Analysis Tool',
+    render: imageAnalysisUI
+  },
+  // Add new premium tools
+  curveFitter: {
+    name: 'Curve Fitting Toolbox',
+    render: curveFitterUI,
+    premium: true
+  },
+  expDesigner: {
+    name: 'Experimental Design Planner',
+    render: expDesignerUI,
+    premium: true
+  },
+  welcome: {
+    name: 'Welcome',
+    render: welcomeScreenUI
+  }
+};
+
+/**
+ * Load a tool and render it in the container
+ * @param {string} key - Key of the tool to load
+ */
+function loadTool(key) {
+  // Update active state in navigation
+  document.querySelectorAll('#navBar button').forEach(btn => {
+    btn.classList.remove('bg-blue-200', 'font-semibold');
+    btn.classList.add('bg-white');
+  });
+
+  // Find the button for this tool and highlight it
+  const activeButton = Array.from(document.querySelectorAll('#navBar button')).find(
+    btn => btn.dataset.key === key
+  );
+  if (activeButton) {
+    activeButton.classList.remove('bg-white');
+    activeButton.classList.add('bg-blue-200', 'font-semibold');
+  }
+
+  // Clear container and render tool
+  const container = document.getElementById('toolContainer');
+  container.innerHTML = '';
+  tools[key].render(container, { 
+    bumpCounter, 
+    toast, 
+    createTooltips, 
+    addHelpIcon,
+    showToolHelp: (toolKey) => showToolHelp(toolKey, tools, helpContent)
+  });
+
+  // Initialize tooltips after rendering
+  setTimeout(() => {
+    createTooltips();
+  }, 100);
+
+  // Add help button if not welcome screen
+  if (key !== 'welcome') {
+    const helpButton = document.createElement('button');
+    helpButton.className = 'absolute top-4 right-4 text-blue-600 flex items-center';
+    helpButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg> Help';
+
+    helpButton.addEventListener('click', () => {
+      showToolHelp(key, tools, helpContent);
+    });
+
+    // Find a good place to insert the help button
+    const heading = container.querySelector('h2');
+    if (heading) {
+      heading.style.position = 'relative';
+      heading.appendChild(helpButton);
+    } else {
+      container.insertBefore(helpButton, container.firstChild);
+    }
+  }
+}
+
+/**
+ * Initialize the application
+ */
+function initApp() {
+  // Create floating action button
+  createFloatingActionButton();
+
+  // Show onboarding modal for first-time visitors
+  showOnboardingModal();
+
+  // Build navigation buttons
+  const nav = document.getElementById('navBar');
+  Object.entries(tools).forEach(([key, tool]) => {
+    const btn = document.createElement('button');
+    
+    // Add premium indicator for premium tools
+    if (tool.premium) {
+      btn.className = 'relative px-3 py-1 bg-white border border-blue-300 rounded shadow hover:bg-blue-100';
+      
+      // Add premium badge
+      const badge = document.createElement('span');
+      badge.className = 'absolute -top-2 -right-2 bg-yellow-400 text-xs px-1 rounded-full text-blue-800 font-bold';
+      badge.textContent = 'PRO';
+      btn.appendChild(badge);
+    } else {
+      btn.className = 'px-3 py-1 bg-white border rounded shadow hover:bg-blue-200';
+    }
+    
+    btn.textContent = tool.name;
+    btn.dataset.key = key;
+    btn.onclick = () => loadTool(key);
+    nav.appendChild(btn);
+  });
+
+  // Load welcome screen by default
+  loadTool('welcome');
+}
+
+// Make loadTool available globally
+window.loadTool = loadTool;
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', initApp);

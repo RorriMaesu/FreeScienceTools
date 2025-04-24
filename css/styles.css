@@ -1,0 +1,44 @@
+/* Custom tooltip styles */
+.tippy-box {
+  background-color: #1e40af;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+.tippy-arrow {
+  color: #1e40af;
+}
+/* Help icon style */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: help;
+  margin-left: 4px;
+}
+/* Error message style */
+.error-message {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+/* Success message style */
+.success-message {
+  color: #16a34a;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+/* Toast notification style */
+.toast{position:fixed;bottom:1rem;left:1rem;background:#334155;color:#fff;padding:.75rem 1rem;border-radius:.5rem;opacity:0;transition:opacity .4s}
+.toast.show{opacity:1}
+/* Floating action button style */
+.fab{position:fixed;bottom:1rem;right:1rem;background:#fbbf24;width:3.5rem;height:3.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.fab:hover .fab-label{transform:scaleX(1);opacity:1}
+.fab-label{opacity:0;transform:scaleX(0);transform-origin:right;padding:0 .5rem;background:#fbbf24;border-radius:.25rem;margin-right:.5rem;white-space:nowrap;transition:all .2s}

@@ -331,6 +331,10 @@ const tools = {
   cellCounter: {
     name: 'Quick Cell-Counter (Beta)',
     render: cellCounterUI
+  },
+  imageAnalysis: {
+    name: 'Image Analysis Tool',
+    render: imageAnalysisUI
   }
 };
 
@@ -675,6 +679,40 @@ function getToolHelpContent(toolKey) {
       </ul>
 
       <p><strong>Note:</strong> This is a beta feature and works best with high-contrast images. Results should be verified manually for critical applications.</p>
+    `,
+    imageAnalysis: `
+      <h4>How to Use the Image Analysis Tool</h4>
+      <p>This powerful tool helps scientists analyze microscopy and other scientific images with precise measurements.</p>
+
+      <h5>Key Features:</h5>
+      <ul>
+        <li><strong>Distance Measurement:</strong> Measure precise distances between points in your image.</li>
+        <li><strong>Area Calculation:</strong> Calculate areas of regions of interest.</li>
+        <li><strong>Angle Measurement:</strong> Measure angles between structures.</li>
+        <li><strong>Intensity Analysis:</strong> Analyze pixel intensity along a line or in a region.</li>
+        <li><strong>Scale Calibration:</strong> Set a known reference to get real-world measurements.</li>
+      </ul>
+
+      <h5>Getting Started:</h5>
+      <ol>
+        <li>Upload an image or drag and drop it onto the canvas.</li>
+        <li>Select a measurement tool from the toolbar.</li>
+        <li>Click on the image to place measurement points.</li>
+        <li>For calibration, use the "Set Scale" tool and enter a known distance.</li>
+        <li>Results appear in the measurements panel.</li>
+        <li>Use the "Export" button to save your measurements and annotated image.</li>
+      </ol>
+
+      <h5>Tips for Accurate Measurements:</h5>
+      <ul>
+        <li>Always calibrate your image with a known reference (scale bar, ruler, etc.).</li>
+        <li>Use the zoom tools to place measurement points precisely.</li>
+        <li>For area measurements, ensure your polygon is completely closed.</li>
+        <li>The intensity profile tool works best on grayscale or single-channel images.</li>
+        <li>You can save your annotated image with all measurements for documentation.</li>
+      </ul>
+
+      <p>This tool is invaluable for research requiring precise measurements from microscopy, radiography, gel images, and other scientific imagery.</p>
     `
   };
 
