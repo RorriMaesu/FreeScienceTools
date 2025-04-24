@@ -2928,7 +2928,9 @@ function cellCounterUI(root) {
                 </div>
 
                 <div class="pl-6">
-                  <label class="block mb-1 text-sm">Minimum circularity (0.0-1.0):</label>
+                  <label class="block mb-1 text-sm">
+                    Minimum circularity (0.0-1.0): <span class="min-circularity-value font-semibold">0.7</span>
+                  </label>
                   <input type="range" id="minCircularity" min="0.1" max="1.0" step="0.05" value="0.7" class="w-full">
                   <div class="flex justify-between text-xs text-gray-500">
                     <span>0.1 (any shape)</span>
@@ -3046,6 +3048,20 @@ function cellCounterUI(root) {
   maxSizeSlider.addEventListener('input', () => {
     maxSizeValue.textContent = maxSizeSlider.value;
   });
+
+  // Add event listener for minCircularity slider if it exists
+  setTimeout(() => {
+    const minCircularitySlider = document.getElementById('minCircularity');
+    if (minCircularitySlider) {
+      minCircularitySlider.addEventListener('input', () => {
+        // Update any UI elements that should show the current value
+        const valueDisplay = document.querySelector('.min-circularity-value');
+        if (valueDisplay) {
+          valueDisplay.textContent = minCircularitySlider.value;
+        }
+      });
+    }
+  }, 500);
 
   // Handle file upload
   imageUpload.addEventListener('change', (e) => {
@@ -3318,8 +3334,20 @@ function cellCounterUI(root) {
         document.getElementById('useAdaptiveThreshold').checked : false;
       const useCircularityFilter = document.getElementById('useCircularityFilter') ?
         document.getElementById('useCircularityFilter').checked : true;
-      const minCircularity = document.getElementById('minCircularity') ?
-        parseFloat(document.getElementById('minCircularity').value) : 0.7;
+
+      // Get minCircularity value with validation
+      let minCircularity = 0.7; // Default value
+      const minCircularitySlider = document.getElementById('minCircularity');
+      if (minCircularitySlider) {
+        const sliderValue = parseFloat(minCircularitySlider.value);
+        // Validate the value is in the expected range
+        if (!isNaN(sliderValue) && sliderValue >= 0.1 && sliderValue <= 1.0) {
+          minCircularity = sliderValue;
+        } else {
+          console.warn('Invalid minCircularity value:', sliderValue, 'using default 0.7');
+        }
+      }
+
       const useWatershed = document.getElementById('useWatershed') ?
         document.getElementById('useWatershed').checked : true;
 
@@ -3397,50 +3425,65 @@ function cellCounterUI(root) {
         morphOp.delete();
         morphKernel.delete();
 
-        // Use watershed algorithm to separate touching cells if enabled
-        let processedBinary = binary.clone();
+        // Create a copy of the binary image for processing
+        let processedBinary = new cv.Mat();
+        binary.copyTo(processedBinary);
 
         if (useWatershed) {
-          // Distance transform
-          dist = new cv.Mat();
-          cv.distanceTransform(binary, dist, cv.DIST_L2, 5);
+          try {
+            // Distance transform
+            dist = new cv.Mat();
+            cv.distanceTransform(binary, dist, cv.DIST_L2, 5);
 
-          // Normalize the distance image for range [0,1]
-          let distDisplay = new cv.Mat();
-          cv.normalize(dist, distDisplay, 0, 1, cv.NORM_MINMAX);
+            // Normalize the distance image for range [0,1]
+            let distDisplay = new cv.Mat();
+            cv.normalize(dist, distDisplay, 0, 1, cv.NORM_MINMAX);
 
-          // Threshold to find sure foreground
-          let foreground = new cv.Mat();
-          const distThresh = 0.7; // Adjust as needed
-          cv.threshold(distDisplay, foreground, distThresh, 1, cv.THRESH_BINARY);
+            // Threshold to find sure foreground
+            let foreground = new cv.Mat();
+            const distThresh = 0.7; // Adjust as needed
+            cv.threshold(distDisplay, foreground, distThresh, 1, cv.THRESH_BINARY);
 
-          // Find sure background
-          let background = new cv.Mat();
-          const dilationSize = new cv.Size(3, 3);
-          const dilationKernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, dilationSize);
-          cv.dilate(binary, background, dilationKernel);
-          cv.threshold(background, background, 1, 1, cv.THRESH_BINARY_INV);
+            // Find sure background
+            let background = new cv.Mat();
+            const dilationSize = new cv.Size(3, 3);
+            const dilationKernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, dilationSize);
+            cv.dilate(binary, background, dilationKernel);
+            cv.threshold(background, background, 1, 1, cv.THRESH_BINARY_INV);
 
-          // Find unknown region (not sure foreground or background)
-          markers = new cv.Mat();
-          cv.add(foreground, background, markers, cv.noArray(), cv.CV_8U);
+            // Find unknown region (not sure foreground or background)
+            markers = new cv.Mat();
+            cv.add(foreground, background, markers, cv.noArray(), cv.CV_8U);
 
-          // Convert to 32-bit signed integer for watershed
-          markers.convertTo(markers, cv.CV_32S);
+            // Convert to 32-bit signed integer for watershed
+            markers.convertTo(markers, cv.CV_32S);
 
-          // Apply watershed
-          cv.cvtColor(src, dst, cv.COLOR_RGBA2RGB);
-          cv.watershed(dst, markers);
+            // Apply watershed
+            let tempDst = new cv.Mat();
+            cv.cvtColor(src, tempDst, cv.COLOR_RGBA2RGB);
+            cv.watershed(tempDst, markers);
+            tempDst.delete();
 
-          // Mark watershed boundaries
-          processedBinary = new cv.Mat();
-          markers.convertTo(processedBinary, cv.CV_8U);
+            // Mark watershed boundaries
+            let watershedResult = new cv.Mat();
+            markers.convertTo(watershedResult, cv.CV_8U);
 
-          // Clean up
-          foreground.delete();
-          background.delete();
-          distDisplay.delete();
-          dilationKernel.delete();
+            // Replace processedBinary with watershed result
+            processedBinary.delete();
+            processedBinary = watershedResult;
+
+            // Clean up
+            foreground.delete();
+            background.delete();
+            distDisplay.delete();
+            dilationKernel.delete();
+          } catch (error) {
+            console.error('Watershed algorithm failed:', error);
+            // If watershed fails, fall back to the original binary image
+            if (processedBinary) processedBinary.delete();
+            processedBinary = new cv.Mat();
+            binary.copyTo(processedBinary);
+          }
         }
 
         // Find contours
@@ -3470,10 +3513,24 @@ function cellCounterUI(root) {
           // Calculate circularity if filter is enabled
           let isCircular = true;
           if (useCircularityFilter) {
-            const perimeter = cv.arcLength(contour, true);
-            // Circularity = 4π(area/perimeter²), perfect circle = 1.0
-            const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
-            isCircular = circularity >= minCircularity;
+            try {
+              const perimeter = cv.arcLength(contour, true);
+              // Circularity = 4π(area/perimeter²), perfect circle = 1.0
+              const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+
+              // Ensure circularity is valid (sometimes numerical errors can occur)
+              if (isNaN(circularity) || circularity < 0 || circularity > 1) {
+                console.warn('Invalid circularity value:', circularity, 'for contour with area:', area, 'and perimeter:', perimeter);
+                // Default to accepting the contour if we get an invalid circularity
+                isCircular = true;
+              } else {
+                isCircular = circularity >= minCircularity;
+              }
+            } catch (error) {
+              console.error('Error calculating circularity:', error);
+              // Default to accepting the contour if calculation fails
+              isCircular = true;
+            }
           }
 
           if (isCircular) {
@@ -3582,15 +3639,19 @@ function cellCounterUI(root) {
         resultsContainer.scrollIntoView({ behavior: 'smooth' });
       } finally {
         // Clean up OpenCV resources
-        if (src) src.delete();
-        if (dst) dst.delete();
-        if (gray) gray.delete();
-        if (binary) binary.delete();
-        if (hierarchy) hierarchy.delete();
-        if (contours) contours.delete();
-        if (dist) dist.delete();
-        if (markers) markers.delete();
-        if (processedBinary && processedBinary !== binary) processedBinary.delete();
+        try {
+          if (src) src.delete();
+          if (dst) dst.delete();
+          if (gray) gray.delete();
+          if (binary) binary.delete();
+          if (hierarchy) hierarchy.delete();
+          if (contours) contours.delete();
+          if (dist) dist.delete();
+          if (markers) markers.delete();
+          if (processedBinary) processedBinary.delete();
+        } catch (error) {
+          console.error('Error cleaning up OpenCV resources:', error);
+        }
       }
     } catch (error) {
       console.error('Error processing image:', error);
