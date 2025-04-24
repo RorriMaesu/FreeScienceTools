@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sci Mini‑Suite</title>
+  <!-- Tailwind via CDN for quick styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Plotly (quick‑plot lab) -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <!-- PapaParse (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <header class="bg-blue-800 text-white p-4 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Sci Mini‑Suite</h1>
+    <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Buy Me a Coffee</a>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="bg-blue-100 p-2 flex gap-2 flex-wrap" id="navBar"></nav>
+
+  <!-- Tool container -->
+  <main class="flex-1 p-4" id="toolContainer"></main>
+
+  <footer class="bg-blue-800 text-white text-center p-2 text-xs mt-4">© 2025 Sci Mini‑Suite • All client‑side, no data leaves your browser.</footer>
+
+<script>
+// ========== TOOL REGISTRY ========== //
+const tools = {
+  testGenie: {
+    name: 'Stat Test Genie',
+    render: statGenieUI
+  },
+  csvConverter: {
+    name: 'CSV ⇄ JSON Converter',
+    render: csvConverterUI
+  },
+  quickPlot: {
+    name: 'Quick‑Plot Lab',
+    render: quickPlotUI
+  },
+  labCalc: {
+    name: 'Lab Math Calc',
+    render: labCalcUI
+  },
+  fastViewer: {
+    name: 'FAST‑Viewer',
+    render: fastViewerUI
+  }
+};
+
+// Build nav buttons
+const nav = document.getElementById('navBar');
+Object.entries(tools).forEach(([key, {name}]) => {
+  const btn = document.createElement('button');
+  btn.className = 'px-3 py-1 bg-white border rounded shadow hover:bg-blue-200';
+  btn.textContent = name;
+  btn.onclick = () => loadTool(key);
+  nav.appendChild(btn);
+});
+
+function loadTool(key){
+  const container = document.getElementById('toolContainer');
+  container.innerHTML = '';
+  tools[key].render(container);
+}
+
+// ========== TOOL 1: Stat Test Genie ========== //
+function statGenieUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Stat Test Genie</h2>
+  <form id="genieForm" class="space-y-2 max-w-md">
+    <label class="block">Type of data?
+      <select name="dtype" class="border p-1 w-full">
+        <option value="numeric">Numeric (continuous)</option>
+        <option value="categorical">Categorical</option>
+      </select>
+    </label>
+    <label class="block">How many groups/conditions?
+      <select name="groups" class="border p-1 w-full">
+        <option value="2">2</option>
+        <option value=">2">More than 2</option>
+      </select>
+    </label>
+    <label class="block">Are the groups independent?
+      <select name="paired" class="border p-1 w-full">
+        <option value="no">Independent</option>
+        <option value="yes">Paired / repeated</option>
+      </select>
+    </label>
+    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Suggest Test</button>
+  </form>
+  <div id="genieResult" class="mt-4"></div>`;
+
+  document.getElementById('genieForm').onsubmit = e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const dtype = fd.get('dtype');
+    const groups = fd.get('groups');
+    const paired = fd.get('paired');
+    const res = document.getElementById('genieResult');
+    let suggestion = '';
+    if(dtype==='numeric'){
+      if(groups==='2') suggestion = paired==='yes'? 'Paired t‑test' : 'Student's t‑test';
+      else suggestion = paired==='yes'? 'Repeated‑measures ANOVA' : 'One‑way ANOVA';
+    } else {
+      suggestion = groups==='2'? 'Chi‑square test (or Fisher's exact)' : 'Chi‑square test for k × m tables';
+    }
+    res.innerHTML = `<p class="font-semibold">Recommended test: <span class="text-blue-700">${suggestion}</span></p>
+                     <p class="text-sm mt-1">⚠️ Always verify assumptions (normality, equal variance, sample size).</p>`;
+  };
+}
+
+// ========== TOOL 2: CSV ⇄ JSON Converter ========== //
+function csvConverterUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">CSV ⇄ JSON Converter</h2>
+  <textarea id="dataInput" rows="8" class="w-full border p-2" placeholder="Paste CSV or JSON here..."></textarea>
+  <div class="flex gap-2 my-2">
+    <button id="toJson" class="bg-blue-600 text-white px-2 py-1 rounded">→ JSON</button>
+    <button id="toCsv" class="bg-green-600 text-white px-2 py-1 rounded">→ CSV</button>
+  </div>
+  <textarea id="dataOutput" rows="8" class="w-full border p-2" placeholder="Output will appear here" readonly></textarea>`;
+
+  const input = document.getElementById('dataInput');
+  const output = document.getElementById('dataOutput');
+
+  document.getElementById('toJson').onclick = ()=>{
+    try{
+      const parsed = Papa.parse(input.value.trim(), {header:true});
+      output.value = JSON.stringify(parsed.data, null, 2);
+    }catch(err){alert('Conversion error');}
+  };
+  document.getElementById('toCsv').onclick = ()=>{
+    try{
+      const obj = JSON.parse(input.value);
+      output.value = Papa.unparse(obj);
+    }catch(err){alert('Conversion error: ensure valid JSON');}
+  };
+}
+
+// ========== TOOL 3: Quick‑Plot Lab ========== //
+function quickPlotUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Quick‑Plot Lab</h2>
+  <textarea id="plotData" rows="6" class="w-full border p-2" placeholder="Paste two‑column CSV: x,y\n1,2\n..."></textarea>
+  <div class="flex gap-2 my-2 items-end">
+    <label class="block">Plot type
+      <select id="plotType" class="border p-1">
+        <option value="scatter">Scatter</option>
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+      </select>
+    </label>
+    <button id="makePlot" class="bg-blue-600 text-white px-3 py-1 rounded">Plot</button>
+  </div>
+  <div id="plotArea" class="bg-white shadow w-full h-96"></div>`;
+
+  document.getElementById('makePlot').onclick = ()=>{
+    const csv = document.getElementById('plotData').value.trim();
+    const rows = csv.split(/\r?\n/).map(r=>r.split(','));
+    if(rows[0].length<2){alert('Need two columns');return;}
+    const x = rows.map(r=>r[0]);
+    const y = rows.map(r=>parseFloat(r[1]));
+    const type = document.getElementById('plotType').value;
+    const trace = {x, y, mode: type==='scatter'? 'markers' : undefined, type: type==='scatter'? 'scatter' : type};
+    Plotly.newPlot('plotArea', [trace], {margin:{t:20}});
+  };
+}
+
+// ========== TOOL 4: Lab Math Calculator ========== //
+function labCalcUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">Dilution & Molarity Calculator</h2>
+  <form id="calcForm" class="space-y-2 max-w-md">
+    <label class="block">Stock concentration (M)
+      <input type="number" step="any" name="stock" class="border p-1 w-full" required>
+    </label>
+    <label class="block">Desired concentration (M)
+      <input type="number" step="any" name="desired" class="border p-1 w-full" required>
+    </label>
+    <label class="block">Final volume (mL)
+      <input type="number" step="any" name="vol" class="border p-1 w-full" required>
+    </label>
+    <button class="bg-blue-600 text-white px-3 py-1 rounded">Calculate</button>
+  </form>
+  <div id="calcResult" class="mt-4"></div>`;
+
+  document.getElementById('calcForm').onsubmit = e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const C1 = parseFloat(fd.get('stock'));
+    const C2 = parseFloat(fd.get('desired'));
+    const V2 = parseFloat(fd.get('vol'));
+    if(C2> C1){alert('Desired concentration can\'t exceed stock');return;}
+    const V1 = (C2 * V2) / C1; // in mL
+    const diluent = V2 - V1;
+    document.getElementById('calcResult').innerHTML = `<p>📌 Pipette <span class="font-semibold">${V1.toFixed(3)} mL</span> of stock solution and add <span class="font-semibold">${diluent.toFixed(3)} mL</span> diluent.</p>`;
+  };
+}
+
+// ========== TOOL 5: FAST‑Viewer ========== //
+function fastViewerUI(root){
+  root.innerHTML = `
+  <h2 class="text-xl font-semibold mb-2">FAST‑Viewer</h2>
+  <textarea id="seqInput" rows="8" class="w-full border p-2" placeholder=">mySeq\nATGCGT..."></textarea>
+  <label class="block my-2">Motif/Regex (optional)
+    <input id="motif" class="border p-1 w-full" placeholder="e.g. GAATTC or ATG[ATGC]{3}TAA">
+  </label>
+  <button id="analyzeSeq" class="bg-blue-600 text-white px-3 py-1 rounded">Highlight</button>
+  <pre id="seqOutput" class="whitespace-pre-wrap mt-4 bg-white p-2 border overflow-x-auto"></pre>`;
+
+  document.getElementById('analyzeSeq').onclick = ()=>{
+    const raw = document.getElementById('seqInput').value.trim();
+    const lines = raw.split(/\r?\n/);
+    let seq = lines.filter(l=>!l.startsWith('>')).join('').toUpperCase();
+    const motif = document.getElementById('motif').value.trim();
+    let html = '';
+    if(motif){
+      try{
+        const regex = new RegExp(motif, 'g');
+        let last = 0, match;
+        while((match = regex.exec(seq))){
+          html += seq.slice(last, match.index);
+          html += `<span class='bg-yellow-300'>${match[0]}</span>`;
+          last = match.index + match[0].length;
+        }
+        html += seq.slice(last);
+      }catch(e){
+        alert('Invalid motif/regex');
+        html = seq;
+      }
+    } else {
+      html = seq;
+    }
+    document.getElementById('seqOutput').innerHTML = html.match(/.{1,60}/g).join('\n');
+  };
+}
+
+// Load default tool
+loadTool('testGenie');
+</script>
+</body>
+</html>
