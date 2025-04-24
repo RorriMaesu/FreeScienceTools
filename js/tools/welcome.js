@@ -14,42 +14,10 @@ export function welcomeScreenUI(root) {
     <div class="bg-blue-50 p-6 rounded-lg border border-blue-200 mb-6">
       <h3 class="font-semibold text-lg mb-3">Your All-in-One Scientific Toolkit</h3>
       <p class="mb-4">Sci Mini-Suite is a collection of lightweight, browser-based scientific tools for everyday lab and data analysis tasks. All tools run entirely in your browser - no data is sent to any server.</p>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <h4 class="font-semibold mb-2">Statistical Tools</h4>
-          <ul class="list-disc pl-5 space-y-1">
-            <li><span class="font-medium">Stat Test Genie</span> - Find the right statistical test</li>
-            <li><span class="font-medium">Power & Sample-Size Wizard</span> - Calculate required sample sizes</li>
-            <li><span class="font-medium">Normality & Outlier Checker</span> - Test data distribution</li>
-          </ul>
-        </div>
-        <div>
-          <h4 class="font-semibold mb-2">Lab Tools</h4>
-          <ul class="list-disc pl-5 space-y-1">
-            <li><span class="font-medium">Lab Math Calc</span> - Dilution calculations</li>
-            <li><span class="font-medium">Unit & Concentration Converter</span> - Convert between units</li>
-            <li><span class="font-medium">Quick Cell-Counter</span> - Count cells in images</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h4 class="font-semibold mb-2">Data Tools</h4>
-          <ul class="list-disc pl-5 space-y-1">
-            <li><span class="font-medium">CSV ↔ JSON Converter</span> - Convert between formats</li>
-            <li><span class="font-medium">Quick-Plot Lab</span> - Create plots from data</li>
-            <li><span class="font-medium">Heat-Mapper</span> - Create heatmaps from matrices</li>
-          </ul>
-        </div>
-        <div>
-          <h4 class="font-semibold mb-2">Sequence Tools</h4>
-          <ul class="list-disc pl-5 space-y-1">
-            <li><span class="font-medium">FAST-Viewer</span> - View and analyze DNA/RNA sequences</li>
-          </ul>
-        </div>
-      </div>
+      
+      <p class="p-3 bg-white rounded-lg border border-blue-200">
+        We're currently rebuilding our suite with exciting new features! Check out our premium tools below while we restore the rest of our toolkit.
+      </p>
     </div>
 
     <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200 mb-6">
@@ -62,33 +30,14 @@ export function welcomeScreenUI(root) {
       </ol>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-green-50 p-4 rounded-lg border border-green-200">
-        <h3 class="font-semibold mb-2">Most Popular Tools</h3>
-        <div class="space-y-2">
-          <button onclick="loadTool('powerWizard')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Power & Sample-Size Wizard</button>
-          <button onclick="loadTool('labCalc')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Lab Math Calc</button>
-          <button onclick="loadTool('quickPlot')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Quick-Plot Lab</button>
-        </div>
-      </div>
-
-      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
-        <h3 class="font-semibold mb-2">New Tools</h3>
-        <div class="space-y-2">
-          <button onclick="loadTool('heatMapper')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Heat-Mapper</button>
-          <button onclick="loadTool('unitConverter')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Unit & Concentration Converter</button>
-          <button onclick="loadTool('cellCounter')" class="w-full text-left px-3 py-2 bg-white rounded border hover:bg-blue-50">Quick Cell-Counter (Beta)</button>
-        </div>
-      </div>
-
-      <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-        <h3 class="font-semibold mb-2">Support This Project</h3>
-        <p class="text-sm mb-3">Sci Mini-Suite is free to use and developed by scientists for scientists. Your support helps keep it running and growing.</p>
-        <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="block bg-yellow-400 text-black px-3 py-2 rounded text-center hover:bg-yellow-500">☕ Buy Me a Coffee</a>
-      </div>
+    <!-- Support Section -->
+    <div class="bg-red-50 p-6 rounded-lg border border-red-200 mb-6">
+      <h3 class="font-semibold mb-3">Support This Project</h3>
+      <p class="mb-3">Sci Mini-Suite is free to use and developed by scientists for scientists. Your support helps keep it running and growing.</p>
+      <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="block bg-yellow-400 text-black px-3 py-2 rounded text-center hover:bg-yellow-500 max-w-xs mx-auto">☕ Buy Me a Coffee</a>
     </div>
 
-    <!-- New Premium Tools Section -->
+    <!-- Premium Tools Section -->
     <div class="bg-gradient-to-r from-blue-100 to-indigo-100 p-6 rounded-lg border border-blue-300 mb-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-lg text-indigo-800">Premium Tools Now Available!</h3>

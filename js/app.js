@@ -6,69 +6,13 @@ import { bumpCounter, toast, createFloatingActionButton, showOnboardingModal } f
 import { createTooltips, addHelpIcon, showToolHelp } from './core/ui-helpers.js';
 import { helpContent } from './core/help-content.js';
 
-// Import tool modules
-import { statGenieUI } from './tools/stat-genie.js';
-import { powerWizardUI } from './tools/power-wizard.js';
-import { normalityCheckerUI } from './tools/normality-checker.js';
-import { csvConverterUI } from './tools/csv-converter.js';
-import { quickPlotUI } from './tools/quick-plot.js';
-import { heatMapperUI } from './tools/heat-mapper.js';
-import { labCalcUI } from './tools/lab-calc.js';
-import { unitConverterUI } from './tools/unit-converter.js';
-import { fastViewerUI } from './tools/fast-viewer.js';
-import { cellCounterUI } from './tools/cell-counter.js';
-import { imageAnalysisUI } from './tools/image-analysis.js';
+// Import only the tool modules that exist
 import { welcomeScreenUI } from './tools/welcome.js';
-// Import new premium tools
 import { curveFitterUI } from './tools/curve-fitter.js';
 import { expDesignerUI } from './tools/exp-designer.js';
 
-// Tool registry
+// Tool registry with only the available tools
 const tools = {
-  testGenie: {
-    name: 'Stat Test Genie',
-    render: statGenieUI
-  },
-  powerWizard: {
-    name: 'Power & Sample-Size Wizard',
-    render: powerWizardUI
-  },
-  normalityChecker: {
-    name: 'Normality & Outlier Checker',
-    render: normalityCheckerUI
-  },
-  csvConverter: {
-    name: 'CSV to JSON Converter',
-    render: csvConverterUI
-  },
-  quickPlot: {
-    name: 'Quick-Plot Lab',
-    render: quickPlotUI
-  },
-  heatMapper: {
-    name: 'Heat-Mapper',
-    render: heatMapperUI
-  },
-  labCalc: {
-    name: 'Lab Math Calc',
-    render: labCalcUI
-  },
-  unitConverter: {
-    name: 'Unit & Concentration Converter',
-    render: unitConverterUI
-  },
-  fastViewer: {
-    name: 'FAST-Viewer',
-    render: fastViewerUI
-  },
-  cellCounter: {
-    name: 'Quick Cell-Counter (Beta)',
-    render: cellCounterUI
-  },
-  imageAnalysis: {
-    name: 'Image Analysis Tool',
-    render: imageAnalysisUI
-  },
   // Add new premium tools
   curveFitter: {
     name: 'Curve Fitting Toolbox',
@@ -91,6 +35,15 @@ const tools = {
  * @param {string} key - Key of the tool to load
  */
 function loadTool(key) {
+  // Check if the tool exists
+  if (!tools[key]) {
+    console.warn(`Tool '${key}' not found. Available tools: ${Object.keys(tools).join(', ')}`);
+    toast(`Sorry, this tool is currently unavailable. We're working on restoring it soon!`);
+    
+    // Default to welcome screen if tool not found
+    key = 'welcome';
+  }
+
   // Update active state in navigation
   document.querySelectorAll('#navBar button').forEach(btn => {
     btn.classList.remove('bg-blue-200', 'font-semibold');
@@ -152,7 +105,7 @@ function initApp() {
 
   // Show onboarding modal for first-time visitors
   showOnboardingModal();
-
+  
   // Build navigation buttons
   const nav = document.getElementById('navBar');
   Object.entries(tools).forEach(([key, tool]) => {

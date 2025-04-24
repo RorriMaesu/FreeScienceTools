@@ -104,6 +104,18 @@ export function loadOpenCV(callback) {
 }
 
 /**
+ * Generate a UUID for element IDs
+ * @returns {string} - A UUID string
+ */
+export function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
  * Validate a numeric input
  * @param {HTMLInputElement} input - Input element to validate
  * @param {number|null} min - Minimum allowed value (null for no minimum)
@@ -130,4 +142,40 @@ export function validateNumericInput(input, min = null, max = null) {
 
   clearError(input);
   return true;
+}
+
+/**
+ * Show error message for an input element
+ * @param {HTMLElement} input - Input element to show error for
+ * @param {string} message - Error message to display
+ */
+export function showError(input, message) {
+  // Clear any existing error
+  clearError(input);
+
+  // Add error class to input
+  input.classList.add('border-red-500');
+
+  // Create error message element
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'error-message';
+  errorDiv.textContent = message;
+
+  // Insert error message after input element
+  input.parentNode.insertBefore(errorDiv, input.nextSibling);
+}
+
+/**
+ * Clear error message from an input element
+ * @param {HTMLElement} input - Input element to clear error from
+ */
+export function clearError(input) {
+  // Remove error class
+  input.classList.remove('border-red-500');
+
+  // Remove any existing error message
+  const nextSibling = input.nextSibling;
+  if (nextSibling && nextSibling.classList && nextSibling.classList.contains('error-message')) {
+    nextSibling.remove();
+  }
 }
