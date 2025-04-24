@@ -2909,6 +2909,44 @@ function cellCounterUI(root) {
             </label>
           </div>
 
+          <div class="mb-4">
+            <details class="bg-gray-50 p-3 rounded border">
+              <summary class="font-semibold cursor-pointer">Advanced Settings</summary>
+              <div class="mt-3 space-y-3">
+                <div>
+                  <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="useAdaptiveThreshold" class="mr-1">
+                    <span>Use adaptive thresholding (better for uneven lighting)</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="useCircularityFilter" class="mr-1" checked>
+                    <span>Filter by circularity (only count round objects)</span>
+                  </label>
+                </div>
+
+                <div class="pl-6">
+                  <label class="block mb-1 text-sm">Minimum circularity (0.0-1.0):</label>
+                  <input type="range" id="minCircularity" min="0.1" max="1.0" step="0.05" value="0.7" class="w-full">
+                  <div class="flex justify-between text-xs text-gray-500">
+                    <span>0.1 (any shape)</span>
+                    <span>0.7 (default)</span>
+                    <span>1.0 (perfect circle)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="useWatershed" class="mr-1" checked>
+                    <span>Use watershed algorithm (separate touching cells)</span>
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
           <button id="processImage" class="bg-blue-600 text-white px-4 py-2 rounded mt-2" disabled>Count Cells</button>
         </div>
       </div>
@@ -2957,6 +2995,10 @@ function cellCounterUI(root) {
         <li>Adjust threshold to improve cell detection</li>
         <li>Set min/max size to filter out noise and clumps</li>
         <li>For dark cells on light background, check "Invert image"</li>
+        <li>Use adaptive thresholding for images with uneven lighting</li>
+        <li>The circularity filter helps distinguish round cells from debris</li>
+        <li>The watershed algorithm helps separate touching cells</li>
+        <li>Try different combinations of settings for best results</li>
         <li>This is a beta feature and may not work perfectly for all images</li>
       </ul>
     </div>
@@ -3111,6 +3153,41 @@ function cellCounterUI(root) {
     }
   });
 
+  // Add tooltips for advanced settings
+  setTimeout(() => {
+    const advancedTooltips = [
+      {
+        element: document.querySelector('label[for="useAdaptiveThreshold"]') ||
+                document.querySelector('input#useAdaptiveThreshold').parentNode,
+        text: 'Adaptive thresholding adjusts the threshold value based on local image areas. This works better for images with uneven lighting or varying contrast.'
+      },
+      {
+        element: document.querySelector('label[for="useCircularityFilter"]') ||
+                document.querySelector('input#useCircularityFilter').parentNode,
+        text: 'Circularity measures how close a shape is to a perfect circle. Filtering by circularity helps distinguish round cells from irregular debris or artifacts.'
+      },
+      {
+        element: document.querySelector('label[for="minCircularity"]') ||
+                document.querySelector('input#minCircularity').parentNode,
+        text: 'Set the minimum circularity value (0.1-1.0). Higher values require more circular shapes. A perfect circle has circularity of 1.0.'
+      },
+      {
+        element: document.querySelector('label[for="useWatershed"]') ||
+                document.querySelector('input#useWatershed').parentNode,
+        text: 'The watershed algorithm helps separate touching or overlapping cells by finding boundaries between them. This improves counting accuracy for densely packed cells.'
+      }
+    ];
+
+    advancedTooltips.forEach(tooltip => {
+      if (tooltip.element) {
+        addHelpIcon(tooltip.element, tooltip.text);
+      }
+    });
+
+    // Initialize tooltips
+    createTooltips();
+  }, 500);
+
   // Process image button
   processButton.addEventListener('click', () => {
     if (!currentImage) {
@@ -3236,6 +3313,16 @@ function cellCounterUI(root) {
       const maxSize = parseInt(maxSizeSlider.value);
       const invert = invertCheckbox.checked;
 
+      // Get advanced parameters if they exist
+      const useAdaptiveThreshold = document.getElementById('useAdaptiveThreshold') ?
+        document.getElementById('useAdaptiveThreshold').checked : false;
+      const useCircularityFilter = document.getElementById('useCircularityFilter') ?
+        document.getElementById('useCircularityFilter').checked : true;
+      const minCircularity = document.getElementById('minCircularity') ?
+        parseFloat(document.getElementById('minCircularity').value) : 0.7;
+      const useWatershed = document.getElementById('useWatershed') ?
+        document.getElementById('useWatershed').checked : true;
+
       // Validate parameters
       if (minSize >= maxSize) {
         throw new Error('Minimum cell size must be less than maximum cell size');
@@ -3259,7 +3346,7 @@ function cellCounterUI(root) {
       const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
 
       // Create OpenCV matrices
-      let src, dst, gray, binary, hierarchy, contours;
+      let src, dst, gray, binary, markers, dist, hierarchy, contours;
 
       try {
         // Initialize OpenCV matrices
@@ -3273,71 +3360,186 @@ function cellCounterUI(root) {
         // Convert to grayscale
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        // Apply Gaussian blur to reduce noise
-        const ksize = new cv.Size(5, 5);
+        // Apply Gaussian blur to reduce noise - use smaller kernel for better detail
+        const ksize = new cv.Size(3, 3);
         cv.GaussianBlur(gray, gray, ksize, 0);
 
-        // Apply binary threshold
-        if (invert) {
-          cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY_INV);
+        // Apply thresholding
+        if (useAdaptiveThreshold) {
+          // Adaptive thresholding works better for uneven lighting
+          const blockSize = 11; // Must be odd
+          const C = 2; // Constant subtracted from mean
+
+          if (invert) {
+            cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, blockSize, C);
+          } else {
+            cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, blockSize, C);
+          }
         } else {
-          cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY);
+          // Regular thresholding
+          if (invert) {
+            cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY_INV);
+          } else {
+            cv.threshold(gray, binary, threshold, 255, cv.THRESH_BINARY);
+          }
+        }
+
+        // Apply morphological operations to clean up the binary image
+        const morphKernel = cv.Mat.ones(3, 3, cv.CV_8U);
+        const morphOp = new cv.Mat();
+
+        // Opening operation (erosion followed by dilation) to remove small noise
+        cv.morphologyEx(binary, morphOp, cv.MORPH_OPEN, morphKernel, new cv.Point(-1, -1), 1);
+
+        // Closing operation (dilation followed by erosion) to close small holes in cells
+        cv.morphologyEx(morphOp, binary, cv.MORPH_CLOSE, morphKernel, new cv.Point(-1, -1), 1);
+
+        morphOp.delete();
+        morphKernel.delete();
+
+        // Use watershed algorithm to separate touching cells if enabled
+        let processedBinary = binary.clone();
+
+        if (useWatershed) {
+          // Distance transform
+          dist = new cv.Mat();
+          cv.distanceTransform(binary, dist, cv.DIST_L2, 5);
+
+          // Normalize the distance image for range [0,1]
+          let distDisplay = new cv.Mat();
+          cv.normalize(dist, distDisplay, 0, 1, cv.NORM_MINMAX);
+
+          // Threshold to find sure foreground
+          let foreground = new cv.Mat();
+          const distThresh = 0.7; // Adjust as needed
+          cv.threshold(distDisplay, foreground, distThresh, 1, cv.THRESH_BINARY);
+
+          // Find sure background
+          let background = new cv.Mat();
+          const dilationSize = new cv.Size(3, 3);
+          const dilationKernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, dilationSize);
+          cv.dilate(binary, background, dilationKernel);
+          cv.threshold(background, background, 1, 1, cv.THRESH_BINARY_INV);
+
+          // Find unknown region (not sure foreground or background)
+          markers = new cv.Mat();
+          cv.add(foreground, background, markers, cv.noArray(), cv.CV_8U);
+
+          // Convert to 32-bit signed integer for watershed
+          markers.convertTo(markers, cv.CV_32S);
+
+          // Apply watershed
+          cv.cvtColor(src, dst, cv.COLOR_RGBA2RGB);
+          cv.watershed(dst, markers);
+
+          // Mark watershed boundaries
+          processedBinary = new cv.Mat();
+          markers.convertTo(processedBinary, cv.CV_8U);
+
+          // Clean up
+          foreground.delete();
+          background.delete();
+          distDisplay.delete();
+          dilationKernel.delete();
         }
 
         // Find contours
-        cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        cv.findContours(processedBinary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
         // Check if any contours were found
         if (contours.size() === 0) {
           throw new Error('No cells detected. Try adjusting the threshold or inverting the image.');
         }
 
-        // Filter contours by size and draw them
-        cv.cvtColor(binary, dst, cv.COLOR_GRAY2RGBA);
+        // Prepare output image
+        cv.cvtColor(src, dst, cv.COLOR_RGBA2RGB);
 
         let cellCount = 0;
         let validContours = [];
 
-        // First pass: count valid contours
+        // First pass: filter contours by size and circularity
         for (let i = 0; i < contours.size(); i++) {
           const contour = contours.get(i);
           const area = cv.contourArea(contour);
 
-          if (area >= minSize && area <= maxSize) {
-            validContours.push({
-              index: i,
-              contour: contour,
-              area: area
-            });
+          // Skip contours that are too small or too large
+          if (area < minSize || area > maxSize) {
+            continue;
+          }
+
+          // Calculate circularity if filter is enabled
+          let isCircular = true;
+          if (useCircularityFilter) {
+            const perimeter = cv.arcLength(contour, true);
+            // Circularity = 4π(area/perimeter²), perfect circle = 1.0
+            const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+            isCircular = circularity >= minCircularity;
+          }
+
+          if (isCircular) {
+            // Calculate center point for distance checking
+            const moments = cv.moments(contour);
+            if (moments.m00 !== 0) {
+              const cx = moments.m10 / moments.m00;
+              const cy = moments.m01 / moments.m00;
+
+              validContours.push({
+                index: i,
+                contour: contour,
+                area: area,
+                center: { x: cx, y: cy }
+              });
+            }
           }
         }
 
         // Check if any valid contours were found
         if (validContours.length === 0) {
-          throw new Error('No cells match the size criteria. Try adjusting the min/max cell size.');
+          throw new Error('No cells match the criteria. Try adjusting the size or circularity settings.');
         }
 
         // Sort contours by size (largest first) for better numbering
         validContours.sort((a, b) => b.area - a.area);
 
-        // Second pass: draw and number contours
+        // Second pass: filter out overlapping cells (likely duplicates)
+        const minDistanceSquared = Math.min(minSize, 100); // Minimum distance between cell centers squared
+        const filteredContours = [];
+
         for (let i = 0; i < validContours.length; i++) {
-          const { index, contour } = validContours[i];
+          const contour = validContours[i];
+          let isDuplicate = false;
+
+          // Check if this contour is too close to any already accepted contour
+          for (let j = 0; j < filteredContours.length; j++) {
+            const acceptedContour = filteredContours[j];
+            const dx = contour.center.x - acceptedContour.center.x;
+            const dy = contour.center.y - acceptedContour.center.y;
+            const distSquared = dx * dx + dy * dy;
+
+            if (distSquared < minDistanceSquared) {
+              isDuplicate = true;
+              break;
+            }
+          }
+
+          if (!isDuplicate) {
+            filteredContours.push(contour);
+          }
+        }
+
+        // Third pass: draw and number contours
+        for (let i = 0; i < filteredContours.length; i++) {
+          const { index, contour, center } = filteredContours[i];
 
           // Draw contour
-          const color = new cv.Scalar(0, 255, 0, 255); // Green
+          const color = new cv.Scalar(0, 255, 0); // Green
           cv.drawContours(dst, contours, index, color, 2);
 
           // Draw cell number
           cellCount++;
-          const moments = cv.moments(contour);
-
-          // Check for valid moments to avoid division by zero
-          if (moments.m00 !== 0) {
-            const cx = moments.m10 / moments.m00;
-            const cy = moments.m01 / moments.m00;
-            cv.putText(dst, cellCount.toString(), new cv.Point(cx, cy), cv.FONT_HERSHEY_SIMPLEX, 0.5, new cv.Scalar(255, 0, 0, 255), 1);
-          }
+          cv.circle(dst, new cv.Point(center.x, center.y), 2, new cv.Scalar(255, 0, 0), -1); // Red center dot
+          cv.putText(dst, cellCount.toString(), new cv.Point(center.x + 5, center.y + 5),
+                    cv.FONT_HERSHEY_SIMPLEX, 0.5, new cv.Scalar(255, 0, 0), 1);
         }
 
         // Calculate cell density (cells per mm²)
@@ -3386,6 +3588,9 @@ function cellCounterUI(root) {
         if (binary) binary.delete();
         if (hierarchy) hierarchy.delete();
         if (contours) contours.delete();
+        if (dist) dist.delete();
+        if (markers) markers.delete();
+        if (processedBinary && processedBinary !== binary) processedBinary.delete();
       }
     } catch (error) {
       console.error('Error processing image:', error);
