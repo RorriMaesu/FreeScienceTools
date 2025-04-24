@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sci Mini-Suite</title>
   <!-- Production-ready Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <!-- Plotly (quick‑plot lab) -->
+  <link href="https://unpkg.com/@tailwindcss/typography@0.5.9/dist/typography.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Plotly (quick-plot lab) -->
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <!-- PapaParse (CSV parsing) -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
@@ -14,7 +15,7 @@
 <body class="bg-gray-100 min-h-screen flex flex-col">
   <header class="bg-blue-800 text-white p-4 flex items-center justify-between">
     <h1 class="text-2xl font-bold">Sci Mini-Suite</h1>
-    <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">☕ Buy Me a Coffee</a>
+    <a href="https://buymeacoffee.com/rorrimaesu" target="_blank" class="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500">Buy Me a Coffee</a>
   </header>
 
   <!-- Navigation -->
@@ -33,7 +34,7 @@ const tools = {
     render: statGenieUI
   },
   csvConverter: {
-    name: 'CSV <-> JSON Converter',
+    name: 'CSV to JSON Converter',
     render: csvConverterUI
   },
   quickPlot: {
@@ -93,7 +94,7 @@ function statGenieUI(root){
   </form>
   <div id="genieResult" class="mt-4"></div>`;
 
-  document.getElementById('genieForm').onsubmit = e=>{
+  document.getElementById('genieForm').onsubmit = e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const dtype = fd.get('dtype');
@@ -101,21 +102,26 @@ function statGenieUI(root){
     const paired = fd.get('paired');
     const res = document.getElementById('genieResult');
     let suggestion = '';
-    if(dtype==='numeric'){
-      if(groups==='2') suggestion = paired==='yes'? 'Paired t-test' : 'Student\'s t-test';
-      else suggestion = paired==='yes'? 'Repeated-measures ANOVA' : 'One-way ANOVA';
+    
+    if (dtype === 'numeric') {
+      if (groups === '2') {
+        suggestion = paired === 'yes' ? 'Paired t-test' : 'Student t-test';
+      } else {
+        suggestion = paired === 'yes' ? 'Repeated-measures ANOVA' : 'One-way ANOVA';
+      }
     } else {
-      suggestion = groups==='2'? 'Chi-square test (or Fisher\'s exact)' : 'Chi-square test for k x m tables';
+      suggestion = groups === '2' ? 'Chi-square test (or Fisher exact)' : 'Chi-square test for k x m tables';
     }
+    
     res.innerHTML = `<p class="font-semibold">Recommended test: <span class="text-blue-700">${suggestion}</span></p>
-                     <p class="text-sm mt-1">⚠ Always verify assumptions (normality, equal variance, sample size).</p>`;
+                     <p class="text-sm mt-1">Warning: Always verify assumptions (normality, equal variance, sample size).</p>`;
   };
 }
 
-// ========== TOOL 2: CSV <-> JSON Converter ========== //
+// ========== TOOL 2: CSV to JSON Converter ========== //
 function csvConverterUI(root){
   root.innerHTML = `
-  <h2 class="text-xl font-semibold mb-2">CSV <-> JSON Converter</h2>
+  <h2 class="text-xl font-semibold mb-2">CSV to JSON Converter</h2>
   <textarea id="dataInput" rows="8" class="w-full border p-2" placeholder="Paste CSV or JSON here..."></textarea>
   <div class="flex gap-2 my-2">
     <button id="toJson" class="bg-blue-600 text-white px-2 py-1 rounded">To JSON</button>
@@ -126,17 +132,22 @@ function csvConverterUI(root){
   const input = document.getElementById('dataInput');
   const output = document.getElementById('dataOutput');
 
-  document.getElementById('toJson').onclick = ()=>{
-    try{
-      const parsed = Papa.parse(input.value.trim(), {header:true});
+  document.getElementById('toJson').onclick = () => {
+    try {
+      const parsed = Papa.parse(input.value.trim(), {header: true});
       output.value = JSON.stringify(parsed.data, null, 2);
-    }catch(err){alert('Conversion error');}
+    } catch(err) {
+      alert('Conversion error');
+    }
   };
-  document.getElementById('toCsv').onclick = ()=>{
-    try{
+  
+  document.getElementById('toCsv').onclick = () => {
+    try {
       const obj = JSON.parse(input.value);
       output.value = Papa.unparse(obj);
-    }catch(err){alert('Conversion error: ensure valid JSON');}
+    } catch(err) {
+      alert('Conversion error: ensure valid JSON');
+    }
   };
 }
 
@@ -144,7 +155,7 @@ function csvConverterUI(root){
 function quickPlotUI(root){
   root.innerHTML = `
   <h2 class="text-xl font-semibold mb-2">Quick-Plot Lab</h2>
-  <textarea id="plotData" rows="6" class="w-full border p-2" placeholder="Paste two-column CSV: x,y&#10;1,2&#10;..."></textarea>
+  <textarea id="plotData" rows="6" class="w-full border p-2" placeholder="Paste two-column CSV: x,y (one pair per line)"></textarea>
   <div class="flex gap-2 my-2 items-end">
     <label class="block">Plot type
       <select id="plotType" class="border p-1">
@@ -157,15 +168,26 @@ function quickPlotUI(root){
   </div>
   <div id="plotArea" class="bg-white shadow w-full h-96"></div>`;
 
-  document.getElementById('makePlot').onclick = ()=>{
+  document.getElementById('makePlot').onclick = () => {
     const csv = document.getElementById('plotData').value.trim();
-    const rows = csv.split(/\r?\n/).map(r=>r.split(','));
-    if(rows[0].length<2){alert('Need two columns');return;}
-    const x = rows.map(r=>r[0]);
-    const y = rows.map(r=>parseFloat(r[1]));
+    const rows = csv.split(/\r?\n/).map(r => r.split(','));
+    
+    if (rows.length === 0 || rows[0].length < 2) {
+      alert('Need two columns of data');
+      return;
+    }
+    
+    const x = rows.map(r => r[0]);
+    const y = rows.map(r => parseFloat(r[1]));
     const type = document.getElementById('plotType').value;
-    const trace = {x, y, mode: type==='scatter'? 'markers' : undefined, type: type==='scatter'? 'scatter' : type};
-    Plotly.newPlot('plotArea', [trace], {margin:{t:20}});
+    const trace = {
+      x, 
+      y, 
+      mode: type === 'scatter' ? 'markers' : undefined, 
+      type: type === 'scatter' ? 'scatter' : type
+    };
+    
+    Plotly.newPlot('plotArea', [trace], {margin: {t: 20}});
   };
 }
 
@@ -187,15 +209,21 @@ function labCalcUI(root){
   </form>
   <div id="calcResult" class="mt-4"></div>`;
 
-  document.getElementById('calcForm').onsubmit = e=>{
+  document.getElementById('calcForm').onsubmit = e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const C1 = parseFloat(fd.get('stock'));
     const C2 = parseFloat(fd.get('desired'));
     const V2 = parseFloat(fd.get('vol'));
-    if(C2> C1){alert('Desired concentration can\'t exceed stock');return;}
+    
+    if (C2 > C1) {
+      alert('Desired concentration cannot exceed stock');
+      return;
+    }
+    
     const V1 = (C2 * V2) / C1; // in mL
     const diluent = V2 - V1;
+    
     document.getElementById('calcResult').innerHTML = `<p>Pipette <span class="font-semibold">${V1.toFixed(3)} mL</span> of stock solution and add <span class="font-semibold">${diluent.toFixed(3)} mL</span> diluent.</p>`;
   };
 }
@@ -211,30 +239,47 @@ function fastViewerUI(root){
   <button id="analyzeSeq" class="bg-blue-600 text-white px-3 py-1 rounded">Highlight</button>
   <pre id="seqOutput" class="whitespace-pre-wrap mt-4 bg-white p-2 border overflow-x-auto"></pre>`;
 
-  document.getElementById('analyzeSeq').onclick = ()=>{
+  document.getElementById('analyzeSeq').onclick = () => {
     const raw = document.getElementById('seqInput').value.trim();
+    if (!raw) {
+      document.getElementById('seqOutput').innerHTML = '';
+      return;
+    }
+    
     const lines = raw.split(/\r?\n/);
-    let seq = lines.filter(l=>!l.startsWith('>')).join('').toUpperCase();
+    let seq = lines.filter(l => !l.startsWith('>')).join('').toUpperCase();
     const motif = document.getElementById('motif').value.trim();
     let html = '';
-    if(motif){
-      try{
+    
+    if (motif) {
+      try {
         const regex = new RegExp(motif, 'g');
         let last = 0, match;
-        while((match = regex.exec(seq))){
+        
+        while ((match = regex.exec(seq))) {
           html += seq.slice(last, match.index);
           html += `<span class='bg-yellow-300'>${match[0]}</span>`;
           last = match.index + match[0].length;
         }
+        
         html += seq.slice(last);
-      }catch(e){
+      } catch(e) {
         alert('Invalid motif/regex');
         html = seq;
       }
     } else {
       html = seq;
     }
-    document.getElementById('seqOutput').innerHTML = html ? (html.match(/.{1,60}/g) || [html]).join('\n') : '';
+    
+    if (html) {
+      const chunks = [];
+      for (let i = 0; i < html.length; i += 60) {
+        chunks.push(html.substring(i, i + 60));
+      }
+      document.getElementById('seqOutput').innerHTML = chunks.join('\n');
+    } else {
+      document.getElementById('seqOutput').innerHTML = '';
+    }
   };
 }
 
